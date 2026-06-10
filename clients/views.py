@@ -57,38 +57,6 @@ def client_detail(request: HttpRequest, pk: int) -> HttpResponse:
 
 @login_required
 @transaction.atomic
-def client_create(request: HttpRequest) -> HttpResponse:
-    """Створює нового клієнта."""
-    if not has_client_edit_permission(request=request):
-        raise PermissionDenied(
-            'Створення клієнтів доступне лише адміністраторам, директорам та менеджерам.',
-        )
-    if request.method == 'POST':
-        form = ClientForm(request.POST)
-    else:
-        form = ClientForm()
-
-    if not is_admin_user(request=request):
-        user_company: Company | None = get_user_company(request=request)
-        if user_company:
-            form.fields['company'].queryset = Company.objects.filter(
-                pk=user_company.pk,
-            )
-            form.fields['company'].initial = user_company.pk
-            form.fields['company'].disabled = True
-
-    if form.is_valid():
-        form.save()
-        return redirect('client_list')
-
-    return render(request, 'clients/form.html', {
-        'form': form,
-        'title': 'Новий клієнт',
-    })
-
-
-@login_required
-@transaction.atomic
 def client_update(request: HttpRequest, pk: int) -> HttpResponse:
     """Редагує клієнта."""
     if not has_client_edit_permission(request=request):

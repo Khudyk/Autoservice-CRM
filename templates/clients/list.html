@@ -14,9 +14,6 @@
         {% endif %}
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'client_create' %}" class="btn btn-primary">
-            <i class="bi-plus-lg me-1"></i>Новий клієнт
-        </a>
         {% if can_edit %}
         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#clientQuickModal"
                 title="Швидко додати клієнта">
@@ -93,9 +90,9 @@
                             <div class="empty-icon"><i class="bi-person-badge"></i></div>
                             <h5>Немає клієнтів</h5>
                             <p>Додайте першого клієнта до бази даних.</p>
-                            <a href="{% url 'client_create' %}" class="btn btn-primary btn-sm">
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#clientQuickModal">
                                 <i class="bi-plus-lg me-1"></i>Додати клієнта
-                            </a>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
