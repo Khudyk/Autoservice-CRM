@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Головна{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-house-door me-2"></i>Головна
+        </h1>
+        <p class="text-muted mb-0">
+            Ласкаво просимо, <strong>{{ user.get_full_name|default:user.username }}</strong>
+            {% if companies|length == 1 %}
+                &middot; {{ companies.0.name }}
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+{# --- Швидкі дії та останні наряди --- #}
+<div class="row g-4">
+    {# Швидкі дії #}
+    <div class="col-lg-4">
+        <div class="card card-accent h-100">
+            <div class="card-header">
+                <i class="bi-lightning-charge"></i> Швидкі дії
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-column gap-2">
+                    <a href="{% url 'workorder_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Новий наряд
+                    </a>
+                    {% if not user_is_manager %}
+                    <a href="{% url 'part_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Додати запчастину
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'client_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Новий клієнт
+                    </a>
+                    <a href="{% url 'vehicle_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Додати автомобіль
+                    </a>
+                    {% if not user_is_manager %}
+                    <a href="{% url 'supplier_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Додати постачальника
+                    </a>
+                    {% endif %}
+                    {% if not user_is_manager %}
+                    <a href="{% url 'employee_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Додати співробітника
+                    </a>
+                    {% endif %}
+                    {% if not user_is_manager %}
+                    <a href="{% url 'purchase_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Нове замовлення закупівлі
+                    </a>
+                    {% endif %}
+                    {% if not user_is_manager %}
+                    <a href="{% url 'worktype_create' %}" class="quick-action-card">
+                        <i class="bi-plus-circle"></i> Додати вид роботи
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Останні наряди #}
+    <div class="col-lg-8">
+        <div class="card card-accent-blue h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi-clock-history"></i> Останні наряди</span>
+                <a href="{% url 'workorder_list' %}" class="btn btn-sm btn-outline-primary">
+                    Всі наряди <i class="bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_workorders %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>Автомобіль</th>
+                                <th>Статус</th>
+                                <th>Сума</th>
+                                <th>Створив</th>
+                                <th>Дата</th>
+                                <th class="text-end">Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wo in recent_workorders %}
+                            <tr>
+                                <td class="fw-semibold">#{{ wo.pk }}</td>
+                                <td>
+                                    <span class="fw-medium">{{ wo.vehicle.brand }} {{ wo.vehicle.model }}</span>
+                                </td>
+                                <td>
+                                    {% if wo.status == 'draft' %}
+                                        <span class="badge bg-secondary">Чернетка</span>
+                                    {% elif wo.status == 'in_progress' %}
+                                        <span class="badge bg-primary">В роботі</span>
+                                    {% elif wo.status == 'completed' %}
+                                        <span class="badge bg-success">Завершено</span>
+                                    {% elif wo.status == 'awaiting_payment' %}
+                                        <span class="badge bg-warning text-dark">Очікує оплати</span>
+                                    {% elif wo.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Скасовано</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold">{{ wo.total_amount|floatformat:2 }} грн</td>
+                                <td>{{ wo.created_by.user.get_full_name|default:wo.created_by.user.username }}</td>
+                                <td class="text-muted small">{{ wo.created_at|date:"d.m.Y" }}</td>
+                                <td class="text-end action-btns">
+                                    <a href="{% url 'workorder_detail' wo.pk %}" class="btn btn-sm btn-outline-secondary" title="Деталі наряду">
+                                        <i class="bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    <div class="empty-icon"><i class="bi-file-earmark-text"></i></div>
+                                    <h5>Ще немає нарядів</h5>
+                                    <p>Створіть перший заказ-наряд, щоб почати роботу.</p>
+                                    <a href="{% url 'workorder_create' %}" class="btn btn-primary">
+                                        <i class="bi-plus-circle me-1"></i> Створити наряд
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+{# --- Анонімний користувач — лендінг #}
+<div class="text-center py-5">
+    <div class="login-logo mb-4">
+        <i class="bi-tools"></i>
+    </div>
+    <h1 class="display-5 fw-bold mb-3" style="color: var(--text-primary);">Autoservice CRM</h1>
+    <p class="lead text-muted mb-4" style="max-width: 500px; margin-left: auto; margin-right: auto;">
+        Система керування автосервісом для обліку запчастин, закупівель, автомобілів, нарядів та співробітників.
+    </p>
+    <div class="d-flex gap-3 justify-content-center">
+        <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-5">
+            <i class="bi-box-arrow-in-right me-2"></i>Увійти
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

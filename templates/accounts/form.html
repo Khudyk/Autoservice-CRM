@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3 mb-1">
+        <i class="bi-people me-2"></i>{{ title }}
+    </h1>
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- =========================================================
+         Секція 1: Обліковий запис
+         ========================================================= -->
+    <div class="card card-accent mb-4">
+        <div class="card-header">
+            <i class="bi-person-badge text-primary"></i>
+            Обліковий запис
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="{{ form.username.id_for_label }}" class="form-label">
+                        {{ form.username.label }}
+                        {% if form.username.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    {{ form.username }}
+                    {% if form.username.help_text %}
+                    <div class="form-text">{{ form.username.help_text }}</div>
+                    {% endif %}
+                    {% if form.username.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.username.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ form.email.id_for_label }}" class="form-label">
+                        {{ form.email.label }}
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.email.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ form.password.id_for_label }}" class="form-label">
+                        {{ form.password.label }}
+                    </label>
+                    {{ form.password }}
+                    <div class="form-text">{{ form.password.help_text }}</div>
+                    {% if form.password.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.password.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                        {{ form.first_name.label }}
+                    </label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.first_name.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                        {{ form.last_name.label }}
+                    </label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.last_name.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Секція 2: Дані співробітника
+         ========================================================= -->
+    <div class="card card-accent-blue mb-4">
+        <div class="card-header">
+            <i class="bi-building"></i>
+            Дані співробітника
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.company.id_for_label }}" class="form-label">
+                        {{ form.company.label }}
+                        {% if form.company.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    {{ form.company }}
+                    {% if form.company.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.company.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.phone.id_for_label }}" class="form-label">
+                        {{ form.phone.label }}
+                    </label>
+                    {{ form.phone }}
+                    {% if form.phone.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.phone.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label d-block">
+                        {{ form.roles.label }}
+                        {% if form.roles.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    <div class="role-chips">
+                        {% if form.roles.field.choices %}
+                        {% for value, label in form.roles.field.choices %}
+                        {% with id=form.roles.auto_id|cut:":" %}
+                        {% with name=form.roles.html_name %}
+                        {% with value_str=value|stringformat:"s" %}
+                        {% with choice_id=id|add:"_"|add:value_str %}
+                        <label class="role-chip{% if value in form.roles.value %} role-chip-active{% endif %}"
+                               for="{{ choice_id }}">
+                            <input type="checkbox"
+                                   name="{{ name }}"
+                                   value="{{ value }}"
+                                   id="{{ choice_id }}"
+                                   class="role-chip-input"
+                                   {% if value in form.roles.value %}checked{% endif %}>
+                            <span class="role-chip-label">{{ label }}</span>
+                        </label>
+                        {% endwith %}
+                        {% endwith %}
+                        {% endwith %}
+                        {% endwith %}
+                        {% endfor %}
+                        {% else %}
+                        <div class="alert alert-warning mb-0 py-2">
+                            <i class="bi-exclamation-triangle me-1"></i>
+                            Довідник ролей порожній. Виконайте
+                            <code>python manage.py seed_roles</code>
+                            для наповнення.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if form.roles.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.roles.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            {{ form.is_active.label }}
+                        </label>
+                        {% if form.is_active.help_text %}
+                        <div class="form-text">{{ form.is_active.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Секція 3: Відсотки для розрахунку зарплати
+         ========================================================= -->
+    <div class="card card-accent-green mb-4">
+        <div class="card-header">
+            <i class="bi-percent text-success"></i>
+            Відсотки для розрахунку зарплати
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                <i class="bi-info-circle me-1"></i>
+                Відсотки нараховуються від вартості проданих запчастин та виконаних робіт
+                при закритті наряд-замовлення. Якщо відсоток дорівнює 0 — нарахування
+                за цим типом не проводиться.
+            </p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.parts_sale_percent.id_for_label }}" class="form-label">
+                        <i class="bi-box-seam me-1 text-muted"></i>
+                        {{ form.parts_sale_percent.label }}
+                    </label>
+                    <div class="input-group">
+                        {{ form.parts_sale_percent }}
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <div class="form-text">{{ form.parts_sale_percent.help_text }}</div>
+                    {% if form.parts_sale_percent.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.parts_sale_percent.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.labor_percent.id_for_label }}" class="form-label">
+                        <i class="bi-gear me-1 text-muted"></i>
+                        {{ form.labor_percent.label }}
+                    </label>
+                    <div class="input-group">
+                        {{ form.labor_percent }}
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <div class="form-text">{{ form.labor_percent.help_text }}</div>
+                    {% if form.labor_percent.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.labor_percent.errors %}
+                        <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         Кнопки
+         ========================================================= -->
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success">
+            <i class="bi-check-lg me-1"></i>Зберегти
+        </button>
+        <a href="{% url 'employee_list' %}" class="btn btn-outline-secondary">
+            <i class="bi-x-lg me-1"></i>Скасувати
+        </a>
+    </div>
+</form>
+{% endblock %}

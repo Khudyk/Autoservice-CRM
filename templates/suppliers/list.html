@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Постачальники{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-truck me-2"></i>Постачальники
+        </h1>
+        {% if selected_company %}
+        <p class="text-muted mb-0 small">
+            <i class="bi-building me-1"></i>{{ selected_company.name }}
+        </p>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'supplier_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Новий постачальник
+        </a>
+    </div>
+</div>
+
+{% if companies|length > 1 %}
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="companyFilter" class="form-label fw-semibold mb-1">
+                    <i class="bi-funnel me-1"></i>Фільтр за компанією
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="company" id="companyFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— Усі компанії —</option>
+                    {% for company in companies %}
+                    <option value="{{ company.pk }}" {% if selected_company.pk == company.pk %}selected{% endif %}>
+                        {{ company.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-accent-blue">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Назва</th>
+                        <th>Контактна особа</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Статус</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for supplier in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">
+                            <a href="{% url 'supplier_purchases' supplier.pk %}"
+                               class="text-decoration-none" title="Показати всі закупівлі від {{ supplier.name }}">
+                                {{ supplier.name }}
+                            </a>
+                        </td>
+                        <td>{{ supplier.contact_person|default:"—" }}</td>
+                        <td>
+                            {% if supplier.phone %}
+                            <a href="tel:{{ supplier.phone }}" class="text-decoration-none">{{ supplier.phone }}</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if supplier.email %}
+                            <a href="mailto:{{ supplier.email }}" class="text-decoration-none">{{ supplier.email }}</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if supplier.is_active %}
+                                <span class="badge bg-success">Активний</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Неактивний</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end action-btns">
+                            {% if can_edit %}
+                            <a href="{% url 'supplier_update' supplier.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Редагувати">
+                                <i class="bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'supplier_delete' supplier.pk %}" class="btn btn-sm btn-outline-danger"
+                               title="Видалити">
+                                <i class="bi-trash"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="empty-icon"><i class="bi-truck"></i></div>
+                            <h5>Немає постачальників</h5>
+                            <p>Додайте першого постачальника, щоб почати роботу.</p>
+                            {% if can_edit %}
+                            <a href="{% url 'supplier_create' %}" class="btn btn-primary btn-sm">
+                                <i class="bi-plus-lg me-1"></i>Додати постачальника
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

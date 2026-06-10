@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Наряд #{{ workorder.pk }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-file-earmark-text me-2"></i>Наряд #{{ workorder.pk }}
+        </h1>
+        <p class="text-muted mb-0">
+            {{ workorder.vehicle.brand }} {{ workorder.vehicle.model }}
+            &middot; <code>{{ workorder.vehicle.vin_code }}</code>
+            &middot; {{ workorder.vehicle.year }}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'workorder_list' %}" class="btn btn-outline-secondary">
+            <i class="bi-arrow-left me-1"></i>До списку
+        </a>
+        {% if can_edit and wo_editable %}
+        <a href="{% url 'workorder_update' workorder.pk %}" class="btn btn-primary">
+            <i class="bi-pencil me-1"></i>Редагувати
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    {# Інформація про наряд #}
+    <div class="col-md-6">
+        <div class="card card-accent h-100">
+            <div class="card-header">
+                <i class="bi-info-circle"></i> Інформація
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Статус</dt>
+                    <dd class="col-sm-8">
+                        {% if workorder.status == 'draft' %}
+                            <span class="badge bg-secondary">Чернетка</span>
+                        {% elif workorder.status == 'in_progress' %}
+                            <span class="badge bg-primary">В роботі</span>
+                        {% elif workorder.status == 'completed' %}
+                            <span class="badge bg-success">Завершено</span>
+                        {% elif workorder.status == 'awaiting_payment' %}
+                            <span class="badge bg-warning text-dark">Очікує оплати</span>
+                        {% elif workorder.status == 'cancelled' %}
+                            <span class="badge bg-danger">Скасовано</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Автомобіль</dt>
+                    <dd class="col-sm-8 fw-medium">{{ workorder.vehicle.brand }} {{ workorder.vehicle.model }} ({{ workorder.vehicle.year }})</dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">VIN</dt>
+                    <dd class="col-sm-8"><code>{{ workorder.vehicle.vin_code }}</code></dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Клієнт</dt>
+                    <dd class="col-sm-8">
+                        {% with client_obj=workorder.client %}
+                            {% if client_obj %}
+                                <a href="{% url 'client_detail' client_obj.pk %}">{{ client_obj.get_full_name }}</a>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        {% endwith %}
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Пробіг</dt>
+                    <dd class="col-sm-8">{{ workorder.mileage|default:"—" }} км</dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Створив</dt>
+                    <dd class="col-sm-8">{{ workorder.created_by.user.get_full_name|default:workorder.created_by.user.username }}</dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Створено</dt>
+                    <dd class="col-sm-8">{{ workorder.created_at|date:"d.m.Y H:i" }}</dd>
+
+                    {% if workorder.notes %}
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Нотатки</dt>
+                    <dd class="col-sm-8">{{ workorder.notes|linebreaks }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    {# Суми #}
+    <div class="col-md-6">
+        <div class="card card-accent-green h-100">
+            <div class="card-header">
+                <i class="bi-calculator"></i> Вартість
+            </div>
+            <div class="card-body d-flex align-items-center">
+                <div class="row w-100 g-3 text-center">
+                    <div class="col-6">
+                        <div class="p-3 bg-body rounded-3 border">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1">Роботи</div>
+                            <div class="h4 fw-bold mb-0" style="color: var(--blue-accent);">{{ workorder.total_labor_cost|floatformat:2 }} грн</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-body rounded-3 border">
+                            <div class="small text-muted text-uppercase fw-semibold mb-1">Запчастини</div>
+                            <div class="h4 fw-bold mb-0" style="color: var(--accent);">{{ workorder.total_parts_cost|floatformat:2 }} грн</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="p-3 rounded-3" style="background: linear-gradient(135deg, var(--primary), var(--primary-light));">
+                            <div class="small text-uppercase fw-semibold mb-1" style="color: rgba(255,255,255,0.6);">Загальна сума</div>
+                            <div class="h2 fw-bold mb-0" style="color: var(--accent);">{{ workorder.total_amount|floatformat:2 }} грн</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Роботи #}
+<div class="card card-accent-blue mb-4">
+    <div class="card-header">
+        <i class="bi-tools"></i> Роботи
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Вид роботи</th>
+                        <th>К-ть, год</th>
+                        <th>Ціна за год</th>
+                        <th>Виконавець</th>
+                        <th>Опис</th>
+                        <th class="text-end">Сума</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for service in services %}
+                    <tr>
+                        <td class="fw-medium">{{ service.work_type.name }}</td>
+                        <td>{{ service.quantity }}</td>
+                        <td>{{ service.unit_price|floatformat:2 }} грн</td>
+                        <td>
+                            {% if service.employee %}
+                                {{ service.employee.user.get_full_name|default:service.employee.user.username }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ service.description|default:"—" }}</td>
+                        <td class="text-end fw-semibold">{{ service.total|floatformat:2 }} грн</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">Роботи не додані</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="text-end">Всього роботи:</td>
+                        <td class="text-end fw-bold">{{ workorder.total_labor_cost|floatformat:2 }} грн</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# Запчастини #}
+<div class="card card-accent mb-4">
+    <div class="card-header">
+        <i class="bi-box-seam"></i> Запчастини
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Запчастина</th>
+                        <th>Артикул</th>
+                        <th>Кількість</th>
+                        <th>Ціна продажу</th>
+                        <th class="text-end">Сума</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in parts %}
+                    <tr>
+                        <td class="fw-medium">{{ part.part.name }}</td>
+                        <td><code>{{ part.part.part_number|default:"—" }}</code></td>
+                        <td>{{ part.quantity }} {{ part.part.get_unit_display }}</td>
+                        <td>{{ part.unit_price|floatformat:2 }} грн</td>
+                        <td class="text-end fw-semibold">{{ part.total|floatformat:2 }} грн</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">Запчастини не додані</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end">Всього запчастини:</td>
+                        <td class="text-end fw-bold">{{ workorder.total_parts_cost|floatformat:2 }} грн</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

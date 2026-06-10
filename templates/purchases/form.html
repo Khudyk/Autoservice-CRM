@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3 mb-1">
+        <i class="bi-cart-plus me-2"></i>{{ title }}
+    </h1>
+</div>
+
+<form method="post" id="purchaseForm" novalidate>
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    {# --- Основна інформація --- #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi-info-circle me-1"></i> Основна інформація
+        </div>
+        <div class="card-body">
+            {% for field in form %}
+            <div class="mb-3">
+                <label for="{{ field.id_for_label }}" class="form-label">
+                    {{ field.label }}
+                    {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+                {% endif %}
+                {% if field.errors %}
+                <div class="text-danger small mt-1">
+                    {% for error in field.errors %}
+                    <i class="bi-exclamation-circle me-1"></i>{{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# --- Позиції замовлення --- #}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi-list-check me-1"></i> Позиції замовлення</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="addItemBtn">
+                <i class="bi-plus-lg me-1"></i>Додати позицію
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0" id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>Запчастина</th>
+                            <th style="width: 120px;">Кількість</th>
+                            <th style="width: 150px;">Ціна за од., грн</th>
+                            <th style="width: 50px;" class="text-center">
+                                <i class="bi-trash" title="Видалити"></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item_form in formset %}
+                        <tr class="item-row">
+                            <td>
+                                {{ item_form.id }}
+                                {{ item_form.part }}
+                                {% if item_form.part.errors %}
+                                <div class="text-danger small mt-1">{{ item_form.part.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ item_form.quantity_ordered }}
+                                {% if item_form.quantity_ordered.errors %}
+                                <div class="text-danger small mt-1">{{ item_form.quantity_ordered.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ item_form.unit_price }}
+                                {% if item_form.unit_price.errors %}
+                                <div class="text-danger small mt-1">{{ item_form.unit_price.errors }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {{ item_form.DELETE }}
+                                {% if item_form.instance.pk %}
+                                <span class="text-muted small">(позначте для видалення)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {{ formset.non_form_errors }}
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-4">
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success">
+            <i class="bi-check-lg me-1"></i>Зберегти
+        </button>
+        <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+            <i class="bi-x-lg me-1"></i>Скасувати
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.getElementById('addItemBtn');
+    const tbody = document.querySelector('#itemsTable tbody');
+    const totalForms = document.querySelector('#id_items-TOTAL_FORMS');
+    if (!addBtn || !tbody || !totalForms) return;
+    let formCount = parseInt(totalForms.value);
+
+    addBtn.addEventListener('click', function() {
+        const rows = document.querySelectorAll('.item-row');
+        if (rows.length === 0) return;
+        const template = rows[0].cloneNode(true);
+
+        // Очищення полів
+        template.querySelectorAll('input, select').forEach(function(el) {
+            const name = el.getAttribute('name');
+            const id = el.getAttribute('id');
+            if (name) {
+                const newName = name.replace(/-\d+-/, '-' + formCount + '-');
+                el.setAttribute('name', newName);
+            }
+            if (id) {
+                const newId = id.replace(/-\d+-/, '-' + formCount + '-');
+                el.setAttribute('id', newId);
+            }
+            if (el.type !== 'hidden') {
+                el.value = '';
+            }
+            if (el.tagName === 'SELECT') {
+                el.selectedIndex = 0;
+            }
+        });
+
+        // Видалення чекбоксу DELETE
+        const deleteCheck = template.querySelector('input[type="checkbox"]');
+        if (deleteCheck) {
+            deleteCheck.checked = false;
+        }
+
+        tbody.appendChild(template);
+        formCount++;
+        totalForms.value = formCount;
+    });
+});
+</script>
+{% endblock %}

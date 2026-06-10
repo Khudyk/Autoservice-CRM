@@ -1,0 +1,896 @@
+/* ============================================================
+   Autoservice CRM — Сучасний дизайн (2026)
+   Кольорова схема: Slate + Amber (автомобільний стиль)
+   ============================================================ */
+
+/* --- Google Fonts (Inter) --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* --- Змінні --- */
+:root {
+  --primary: #0f172a;
+  --primary-light: #1e293b;
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-light: rgba(245, 158, 11, 0.12);
+  --blue-accent: #3b82f6;
+  --blue-light: rgba(59, 130, 246, 0.1);
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.1);
+  --danger: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.1);
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.1);
+  --bg-body: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* --- Скидання та глобальні стилі --- */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-body);
+  color: var(--text-secondary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+main {
+  flex: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
+   НАВІГАЦІЯ (Dark Slate)
+   ============================================================ */
+.navbar {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  padding: 0;
+  min-height: 64px;
+}
+
+.navbar-brand {
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+  padding: 0.75rem 0;
+  color: #fff !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-brand .brand-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.navbar .nav-link {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem !important;
+  margin: 0.5rem 0.125rem;
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+  position: relative;
+}
+
+.navbar .nav-link:hover {
+  color: #fff !important;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.navbar .nav-link.active {
+  color: #fff !important;
+  background-color: rgba(245, 158, 11, 0.15);
+}
+
+.navbar .nav-link.active::after {
+  display: none;
+}
+
+/* User avatar in navbar */
+.navbar .user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--primary);
+}
+
+/* Dropdown */
+.dropdown-menu {
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 0.5rem;
+  margin-top: 0.5rem !important;
+}
+
+.dropdown-menu-dark {
+  background: var(--primary-light);
+}
+
+.dropdown-item {
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.875rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all var(--transition);
+}
+
+.dropdown-item:hover {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--accent) !important;
+}
+
+/* ============================================================
+   КАРТКИ
+   ============================================================ */
+.card {
+  border: none;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow var(--transition), transform var(--transition);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+.card-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-header:first-child {
+  border-radius: 0;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+/* Accent cards — кольорова смужка зверху */
+.card-accent {
+  position: relative;
+}
+
+.card-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+}
+
+.card-accent-blue::before {
+  background: linear-gradient(90deg, var(--blue-accent), #6366f1);
+}
+
+.card-accent-green::before {
+  background: linear-gradient(90deg, var(--success), #059669);
+}
+
+.card-accent-red::before {
+  background: linear-gradient(90deg, var(--danger), #dc2626);
+}
+
+/* Аліас для зручності — перевизначає успадкований акцент */
+.card-accent-success::before {
+  background: linear-gradient(90deg, var(--success), #059669);
+}
+
+.card-accent-warning::before {
+  background: linear-gradient(90deg, var(--warning), #d97706);
+}
+
+/* Compact card — менші відступи для хронологічного списку */
+.compact-card {
+  margin-bottom: 0.75rem;
+}
+.compact-card .card-header {
+  padding: 0.5rem 0.75rem;
+}
+.compact-card .card-body {
+  padding: 0;
+}
+.compact-card .table {
+  margin-bottom: 0;
+}
+.compact-card .table th,
+.compact-card .table td {
+  padding: 0.35rem 0.75rem;
+}
+
+/* ============================================================
+   ТАБЛИЦІ
+   ============================================================ */
+.table {
+  margin-bottom: 0;
+  font-size: 0.875rem;
+}
+
+.table thead th {
+  background-color: #f8fafc;
+  border-bottom: 2px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 0.875rem 1rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table tbody td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.table-hover > tbody > tr:hover {
+  background-color: rgba(245, 158, 11, 0.04);
+  transition: background-color var(--transition);
+}
+
+/* Чекбокс для першого стовпця — акуратний */
+.table .check-col {
+  width: 40px;
+  text-align: center;
+}
+
+/* Рядки-посилання */
+.table tbody tr.clickable {
+  cursor: pointer;
+}
+
+/* Кнопки дій */
+.action-btns .btn {
+  opacity: 0.6;
+  transition: all var(--transition);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.action-btns .btn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.table tbody tr:hover .action-btns .btn {
+  opacity: 0.8;
+}
+
+/* Футер таблиці */
+.table tfoot {
+  background-color: #f8fafc;
+}
+
+.table tfoot td {
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: none;
+}
+
+/* ============================================================
+   БЕЙДЖІ / СТАТУСИ
+   ============================================================ */
+.badge {
+  font-weight: 500;
+  font-size: 0.6875rem;
+  padding: 0.3em 0.65em;
+  letter-spacing: 0.02em;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+
+.badge.bg-secondary { background-color: #64748b !important; }
+.badge.bg-primary { background-color: var(--blue-accent) !important; }
+.badge.bg-success { background-color: var(--success) !important; }
+.badge.bg-danger { background-color: var(--danger) !important; }
+.badge.bg-warning { background-color: var(--accent) !important; color: var(--primary) !important; }
+
+/* Статуси закупівель */
+.badge.bg-draft { background-color: #64748b !important; }
+.badge.bg-ordered { background-color: var(--blue-accent) !important; }
+.badge.bg-partial { background-color: var(--accent) !important; color: var(--primary) !important; }
+.badge.bg-received { background-color: var(--success) !important; }
+.badge.bg-cancelled { background-color: var(--danger) !important; }
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+.btn {
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border: none;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--accent-hover), #b45309);
+  color: var(--primary);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.btn-outline-primary {
+  border: 2px solid var(--accent);
+  color: var(--accent-hover);
+  background: transparent;
+}
+
+.btn-outline-primary:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
+}
+
+.btn-outline-secondary {
+  border: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.btn-outline-secondary:hover {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger), #dc2626);
+  border: none;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success), #059669);
+  border: none;
+}
+
+.btn-sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8125rem;
+}
+
+/* ============================================================
+   ФОРМИ
+   ============================================================ */
+.form-control, .form-select {
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: var(--font-family);
+  transition: all var(--transition);
+  background-color: #fff;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  outline: none;
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.form-label {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  margin-bottom: 0.375rem;
+}
+
+.form-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* Invalid feedback */
+.invalid-feedback {
+  font-size: 0.8125rem;
+  color: var(--danger);
+  margin-top: 0.25rem;
+}
+
+/* ============================================================
+   РОЛІ — чіпси (клікабельні теги)
+   ============================================================ */
+.role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.4375rem 0.875rem;
+  border-radius: 100px;
+  border: 1.5px solid var(--border-color);
+  background: #fff;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+}
+
+.role-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-hover);
+}
+
+.role-chip-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-color: var(--accent-hover);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+
+.role-chip-active:hover {
+  background: linear-gradient(135deg, var(--accent-hover), #b45309);
+  border-color: #b45309;
+  color: var(--primary);
+}
+
+.role-chip-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Input group — сумісність з дизайном форми */
+.input-group {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.input-group .form-control {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.input-group-text {
+  background: #f8fafc;
+  border: 1.5px solid var(--border-color);
+  border-left: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  padding: 0.5rem 0.875rem;
+}
+
+/* ============================================================
+   СПОВІЩЕННЯ (Toasts)
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  min-width: 320px;
+  max-width: 90vw;
+  word-break: break-word;
+}
+
+.toast.bg-success {
+  background: linear-gradient(135deg, var(--success), #059669) !important;
+}
+
+.toast.bg-danger {
+  background: linear-gradient(135deg, var(--danger), #dc2626) !important;
+}
+
+.toast.bg-warning {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover)) !important;
+  color: var(--primary) !important;
+}
+
+.toast.bg-primary {
+  background: linear-gradient(135deg, var(--blue-accent), #6366f1) !important;
+}
+
+.toast-body {
+  font-weight: 500;
+}
+
+.toast .btn-close {
+  filter: none;
+}
+
+.toast .btn-close-white {
+  filter: brightness(0) invert(1);
+}
+
+/* ============================================================
+   ФУТЕР
+   ============================================================ */
+.footer {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  padding: 1.25rem 0;
+  margin-top: 3rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.footer a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.footer a:hover {
+  color: var(--accent);
+}
+
+/* ============================================================
+   СТАТИСТИКА (Index/Дашборд)
+   ============================================================ */
+.stat-card {
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  background: var(--bg-card);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-card .stat-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+}
+
+.stat-card .stat-icon.primary {
+  background: var(--blue-light);
+  color: var(--blue-accent);
+}
+
+.stat-card .stat-icon.success {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.stat-card .stat-icon.warning {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.stat-card .stat-icon.danger {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.stat-card .stat-number {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+.stat-card .stat-label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ============================================================
+   ШВИДКІ ДІЇ
+   ============================================================ */
+.quick-action-card {
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.625rem 1rem;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quick-action-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent-hover);
+  transform: translateX(4px);
+}
+
+/* ============================================================
+   ПОРОЖНІ СТАНИ
+   ============================================================ */
+.empty-state {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.empty-state .empty-icon {
+  font-size: 3.5rem;
+  color: var(--border-color);
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.empty-state h5 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 auto 1.5rem;
+  font-size: 0.9375rem;
+}
+
+/* ============================================================
+   СТОРІНКА ЛОГІНУ
+   ============================================================ */
+.login-page {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, #0f172a 100%);
+  padding: 2rem;
+}
+
+.login-card {
+  border: none;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-card .card-body {
+  padding: 2.5rem;
+}
+
+.login-logo {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin: 0 auto 1rem;
+}
+
+/* ============================================================
+   АНІМАЦІЇ
+   ============================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   КОД (VIN, артикули)
+   ============================================================ */
+code {
+  background: #f1f5f9;
+  color: var(--text-primary);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ============================================================
+   АДАПТИВНІСТЬ
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .navbar .navbar-collapse {
+    background: var(--primary-light);
+    border-radius: var(--radius-lg);
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Перенесення пунктів навбара, щоб не вилітали за ширину */
+.navbar .navbar-nav {
+  flex-wrap: wrap;
+}
+
+.navbar .navbar-collapse {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .stat-card .stat-number {
+    font-size: 1.35rem;
+  }
+
+  .table thead th {
+    font-size: 0.6875rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  .table tbody td {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .login-card .card-body {
+    padding: 1.5rem;
+  }
+
+  .toast-container {
+    left: 1rem;
+    right: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card .stat-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.1rem;
+  }
+
+  .stat-card .stat-number {
+    font-size: 1.25rem;
+  }
+}
+
+/* ============================================================
+   ДРУК
+   ============================================================ */
+@media print {
+  .navbar, .footer, .btn, .action-btns, .toast-container {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #dee2e6 !important;
+    break-inside: avoid;
+  }
+  body {
+    background: #fff !important;
+  }
+}

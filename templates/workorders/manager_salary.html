@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block title %}Зарплата менеджерів{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 no-print">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-calculator me-2"></i>Зарплата менеджерів
+        </h1>
+        <p class="text-muted mb-0 small">
+            Нарахування всім менеджерам за створені наряди та продані запчастини
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="bi-printer me-1"></i>Друк
+        </button>
+    </div>
+</div>
+
+<!-- Фільтр дати -->
+<div class="card mb-3 no-print">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="dateFrom" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Дата від
+                </label>
+                <input type="date" id="dateFrom" name="date_from"
+                       class="form-control form-control-sm"
+                       value="{{ filter_from|date:'Y-m-d'|default:'' }}">
+            </div>
+            <div class="col-auto">
+                <label for="dateTo" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Дата до
+                </label>
+                <input type="date" id="dateTo" name="date_to"
+                       class="form-control form-control-sm"
+                       value="{{ filter_to|date:'Y-m-d'|default:'' }}">
+            </div>
+            <div class="col-auto d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi-funnel me-1"></i>Фільтр
+                </button>
+                <a href="{% url 'manager_salary_report' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if filter_from or filter_to %}
+<div class="alert alert-info d-flex align-items-center gap-2 py-1 mb-3 no-print" role="alert">
+    <i class="bi-funnel"></i>
+    <span>
+        Період:
+        {% if filter_from %}з <strong>{{ filter_from|date:"d.m.Y" }}</strong>{% endif %}
+        {% if filter_from and filter_to %}&nbsp;до&nbsp;{% endif %}
+        {% if filter_to %}по <strong>{{ filter_to|date:"d.m.Y" }}</strong>{% endif %}
+        &nbsp;&middot;&nbsp;
+        Менеджерів: {{ managers_count }} | Нарядів: {{ total_orders }}
+    </span>
+</div>
+{% endif %}
+
+<!-- Підсумкові картки -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi-people"></i>
+            </div>
+            <div class="stat-number">{{ managers_count }}</div>
+            <div class="stat-label">Менеджерів</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi-file-earmark-text"></i>
+            </div>
+            <div class="stat-number">{{ total_orders }}</div>
+            <div class="stat-label">Всього нарядів</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi-box-seam"></i>
+            </div>
+            <div class="stat-number">{{ total_parts_profit|floatformat:2 }}</div>
+            <div class="stat-label">Прибуток з запчастин, грн</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi-cash"></i>
+            </div>
+            <div class="stat-number text-success">{{ total_earnings|floatformat:2 }}</div>
+            <div class="stat-label">Всього нараховано, грн</div>
+        </div>
+    </div>
+</div>
+
+<!-- Таблиця менеджерів -->
+<div class="card card-accent">
+    <div class="card-header d-flex align-items-center gap-2 py-2">
+        <i class="bi-list-ul"></i>
+        <span class="fw-semibold">Менеджери</span>
+        <span class="badge bg-primary ms-auto">{{ managers_count }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Менеджер</th>
+                        <th>Роль</th>
+                        <th class="text-end">% робіт</th>
+                        <th class="text-end">% запчастин</th>
+                        <th class="text-end">Нарядів</th>
+                        <th class="text-end">Вартість робіт, грн</th>
+                        <th class="text-end">Прибуток з запчастин, грн</th>
+                        <th class="text-end">За роботи, грн</th>
+                        <th class="text-end">За запчастини (з прибутку), грн</th>
+                        <th class="text-end">Всього, грн</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-semibold">
+                            <i class="bi-person me-1"></i>
+                            {{ row.employee.user.get_full_name|default:row.employee.user.username }}
+                        </td>
+                        <td>
+                            {% with role_list=row.employee.roles.all %}
+                                {% for role in role_list %}
+                                    <span class="badge bg-secondary me-1">{{ role.name }}</span>
+                                {% endfor %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-end">{{ row.labor_percent|floatformat:1 }}</td>
+                        <td class="text-end">{{ row.parts_sale_percent|floatformat:1 }}</td>
+                        <td class="text-end">{{ row.orders_count }}</td>
+                        <td class="text-end">{{ row.total_service_cost|floatformat:2 }}</td>
+                        <td class="text-end">{{ row.total_parts_profit|floatformat:2 }}</td>
+                        <td class="text-end">{{ row.service_earnings|floatformat:2 }}</td>
+                        <td class="text-end">{{ row.parts_earnings|floatformat:2 }}</td>
+                        <td class="text-end fw-semibold text-success">
+                            {{ row.total_earnings|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="empty-state">
+                            <div class="empty-icon"><i class="bi-people"></i></div>
+                            <h5>Немає даних для звіту</h5>
+                            <p>
+                                За вибраний період немає менеджерів зі створеними нарядами.
+                                {% if not filter_from and not filter_to %}
+                                    Переконайтеся, що у співробітників заповнено поля
+                                    «Відсоток від робіт» (labor_percent) та/або
+                                    «Відсоток від продажу запчастин» (parts_sale_percent).
+                                {% endif %}
+                            </p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if rows %}
+                <tfoot>
+                    <tr class="table-warning fw-semibold">
+                        <td colspan="5">Разом ({{ managers_count }} менеджерів)</td>
+                        <td class="text-end">{{ total_orders }}</td>
+                        <td class="text-end">{{ total_service_cost|floatformat:2 }}</td>
+                        <td class="text-end">{{ total_parts_profit|floatformat:2 }}</td>
+                        <td class="text-end">{{ total_earnings|floatformat:2 }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Пояснення -->
+<div class="card card-accent-info mt-3">
+    <div class="card-body py-2">
+        <h6 class="fw-semibold mb-1">
+            <i class="bi-info-circle me-1 text-info"></i>Як розраховується зарплата менеджера
+        </h6>
+        <p class="small text-muted mb-0">
+            Для кожного менеджера підраховуються всі створені ним наряди за період.
+            На загальну вартість робіт у цих нарядах нараховується відсоток
+            (<code>labor_percent</code>), а на прибуток з продажу запчастин —
+            відсоток (<code>parts_sale_percent</code>).
+            <br><br>
+            <strong>Формули:</strong><br>
+            <code>За_роботи = Вартість_робіт &times; labor_percent / 100</code><br>
+            <code>За_запчастини = Прибуток_з_запчастин &times; parts_sale_percent / 100</code><br>
+            <code>Прибуток_з_запчастин = (ціна_продажу - ціна_закупівлі) &times; кількість</code><br>
+            <code>Всього = За_роботи + За_запчастини</code>
+        </p>
+    </div>
+</div>
+{% endblock %}

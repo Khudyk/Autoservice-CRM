@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Запчастини{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-box-seam me-2"></i>Запчастини
+        </h1>
+        {% if selected_company %}
+        <p class="text-muted mb-0 small">
+            <i class="bi-building me-1"></i>{{ selected_company.name }}
+        </p>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'part_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Нова запчастина
+        </a>
+    </div>
+</div>
+
+{% if companies|length > 1 %}
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="companyFilter" class="form-label fw-semibold mb-1">
+                    <i class="bi-funnel me-1"></i>Фільтр за компанією
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="company" id="companyFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— Усі компанії —</option>
+                    {% for company in companies %}
+                    <option value="{{ company.pk }}" {% if selected_company.pk == company.pk %}selected{% endif %}>
+                        {{ company.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-accent-blue">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Назва</th>
+                        <th>Артикул</th>
+                        <th>Виробник</th>
+                        <th>Ціна продажу</th>
+                        <th class="text-center">Доступно</th>
+                        <th>Мін. залишок</th>
+                        <th>Статус</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">{{ part.name }}</td>
+                        <td><code>{{ part.part_number|default:"—" }}</code></td>
+                        <td>{{ part.manufacturer|default:"—" }}</td>
+                        <td>{{ part.selling_price|floatformat:2 }} грн</td>
+                        <td class="text-center fw-semibold">
+                            {% if part.quantity_on_hand > 0 %}
+                                {% if part.quantity_on_hand <= part.min_quantity %}
+                                    <span class="badge bg-warning text-dark" title="Залишок нижче мінімального">
+                                        <i class="bi-exclamation-triangle me-1"></i>{{ part.quantity_on_hand|floatformat:0 }}
+                                    </span>
+                                {% else %}
+                                    {{ part.quantity_on_hand|floatformat:0 }}
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-danger" title="Немає в наявності">
+                                    <i class="bi-x-circle me-1"></i>0
+                                </span>
+                            {% endif %}
+                            <small class="text-muted">{{ part.get_unit_display }}</small>
+                        </td>
+                        <td>
+                            {% if part.min_quantity > 0 %}
+                                {{ part.min_quantity|floatformat:0 }} {{ part.get_unit_display }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if part.is_active %}
+                                <span class="badge bg-success">Активна</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Неактивна</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end action-btns">
+                            {% if can_edit %}
+                                {# Повний доступ: редагування + видалення + рух #}
+                                <a href="{% url 'part_movement' part.pk %}" class="btn btn-sm btn-outline-info"
+                                   title="Рух запчастини">
+                                    <i class="bi-arrow-left-right"></i>
+                                </a>
+                                <a href="{% url 'part_update' part.pk %}" class="btn btn-sm btn-outline-secondary"
+                                   title="Редагувати">
+                                    <i class="bi-pencil"></i>
+                                </a>
+                                {% if part.has_purchase_orders %}
+                                    <span class="btn btn-sm btn-outline-danger disabled" title="Видалення заблоковано — є прихідні накладні">
+                                        <i class="bi-lock-fill"></i>
+                                    </span>
+                                {% else %}
+                                    <a href="{% url 'part_delete' part.pk %}" class="btn btn-sm btn-outline-danger"
+                                       title="Видалити">
+                                        <i class="bi-trash"></i>
+                                    </a>
+                                {% endif %}
+                            {% elif can_edit_price %}
+                                {# Тільки редагування ціни + рух (менеджери/закупівельники) #}
+                                <a href="{% url 'part_movement' part.pk %}" class="btn btn-sm btn-outline-info"
+                                   title="Рух запчастини">
+                                    <i class="bi-arrow-left-right"></i>
+                                </a>
+                                <a href="{% url 'part_update' part.pk %}" class="btn btn-sm btn-outline-info"
+                                   title="Змінити ціну">
+                                    <i class="bi-currency-dollar"></i>
+                                </a>
+                                <span class="text-muted small">—</span>
+                            {% else %}
+                                <a href="{% url 'part_movement' part.pk %}" class="btn btn-sm btn-outline-info"
+                                   title="Рух запчастини">
+                                    <i class="bi-arrow-left-right"></i>
+                                </a>
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-icon"><i class="bi-box-seam"></i></div>
+                            <h5>Немає запчастин</h5>
+                            <p>Додайте першу запчастину, щоб почати облік.</p>
+                            {% if can_edit %}
+                            <a href="{% url 'part_create' %}" class="btn btn-primary btn-sm">
+                                <i class="bi-plus-lg me-1"></i>Додати запчастину
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

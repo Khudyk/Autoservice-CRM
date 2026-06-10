@@ -1,0 +1,38 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/big-pickle",
+  "default_agent": "django-developer",
+  "plugin": ["opencode-background-agents"],
+  "agent": {
+    "django-developer": {
+      "mode": "all",
+      "description": "Architect/Lead backend dev (Fat Models/Services, Thin Views)",
+      "prompt": "{file:./.opencode/prompts/django-main-architect.txt}", 
+      "tools": {"write": true, "edit": true, "bash": true}
+    },
+    "django-reviewer": {
+      "mode": "all",
+      "description": "Code review: N+1 detection, race conditions, PEP 8",
+      "prompt": "{file:./.opencode/prompts/django-reviewer.txt}",
+      "tools": {"read": true}
+    },
+    "django-tester": {
+      "mode": "all",
+      "description": "QA automated tests via pytest-django and factory_boy",
+      "prompt": "{file:./.opencode/prompts/django-tester.txt}",
+      "tools": {"write": true, "edit": true, "bash": true}
+    },
+    "django-HTML": {
+      "mode": "all",
+      "description": "Frontend dev: Responsive UI via Bootstrap 5 CDN",
+      "prompt": "{file:./.opencode/prompts/django-HTML.txt}",
+      "tools": {} 
+    },
+    "django-security": {
+      "mode": "all",
+      "description": "AppSec auditor: OWASP Top 10 vulnerabilities scanning",
+      "prompt": "{file:./.opencode/prompts/django-security.txt}",
+      "tools": {"read": true}
+    }
+  }
+}

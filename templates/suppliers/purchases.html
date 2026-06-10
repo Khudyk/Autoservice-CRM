@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% block title %}Закупівлі — {{ supplier.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ============================================================
+     Друк — Закупівлі постачальника
+     ============================================================ */
+  @media print {
+    /* --- Приховати UI-елементи --- */
+    .navbar, .footer, .no-print, .btn, .action-btns,
+    .toast-container, .alert, .card-filter,
+    main > .d-flex, main > .card.mb-2 {
+      display: none !important;
+    }
+
+    /* --- Скидання --- */
+    * { box-shadow: none !important; text-shadow: none !important; }
+    body {
+      background: #fff !important; color: #000 !important;
+      font-size: 9pt; line-height: 1.25;
+    }
+    main { padding-top: 0 !important; margin-top: 0 !important; }
+    .container {
+      max-width: 100% !important; padding: 0 !important;
+      margin: 0 !important; width: 100% !important;
+    }
+
+    /* --- Заголовок сторінки --- */
+    .print-header {
+      display: flex !important; justify-content: space-between;
+      align-items: baseline; border-bottom: 1.5pt solid #000;
+      padding-bottom: 6pt; margin-bottom: 10pt;
+    }
+    .print-header h1 {
+      font-size: 14pt; font-weight: 700; margin: 0;
+      color: #000 !important;
+    }
+    .print-header .print-meta {
+      font-size: 8pt; color: #666 !important; text-align: right;
+    }
+    .print-header .print-meta div { margin-top: 1pt; }
+
+    /* --- Закупівля (замість card) --- */
+    .compact-card {
+      border: none !important; margin-bottom: 12pt !important;
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .compact-card + .compact-card { border-top: 1pt solid #ccc !important; padding-top: 8pt; }
+
+    .compact-card .card-header {
+      background: none !important; border: none !important;
+      padding: 0 0 4pt 0 !important;
+    }
+    .compact-card .card-header strong { font-size: 10pt; }
+    .compact-card .card-header a { color: #000 !important; text-decoration: none !important; }
+    .compact-card .card-header .text-muted.small {
+      font-size: 7.5pt !important; color: #666 !important;
+    }
+
+    /* --- Статус у заголовку --- */
+    .compact-card .card-header .badge { display: none !important; }
+    .print-status { display: inline !important; font-size: 8pt; font-weight: 600; }
+    .print-status.draft { color: #64748b; }
+    .print-status.ordered { color: #2563eb; }
+    .print-status.partial { color: #d97706; }
+    .print-status.received { color: #16a34a; }
+    .print-status.cancelled { color: #dc2626; }
+
+    /* --- Тіло картки --- */
+    .compact-card .card-body { padding: 0 !important; }
+
+    /* --- Таблиця запчастин --- */
+    .table-responsive { overflow: visible !important; }
+    .compact-card .table {
+      font-size: 8pt !important; width: 100% !important;
+      border-collapse: collapse !important; margin: 0 !important;
+    }
+    .compact-card .table thead th {
+      background: #f0f0f0 !important; color: #000 !important;
+      font-size: 7pt !important; padding: 3pt 5pt !important;
+      border-bottom: 1.5pt solid #333 !important;
+      text-transform: uppercase; letter-spacing: 0.3pt;
+      font-weight: 700;
+    }
+    .compact-card .table tbody td {
+      padding: 2.5pt 5pt !important; border-bottom: 0.5pt solid #ddd !important;
+      color: #000 !important;
+    }
+    .compact-card .table tbody tr:last-child td {
+      border-bottom: none !important;
+    }
+    .compact-card .table tfoot td {
+      background: #f0f0f0 !important; color: #000 !important;
+      font-weight: 700 !important; font-size: 9pt !important;
+      padding: 3pt 5pt !important; border-top: 1.5pt solid #333 !important;
+    }
+    .compact-card .table tfoot .fs-5 { font-size: 10pt !important; }
+
+    /* --- Нотатки --- */
+    .compact-card .card-footer {
+      display: block !important; border: none !important;
+      padding: 3pt 0 0 0 !important; margin-top: 3pt !important;
+      font-size: 7.5pt !important; color: #555 !important;
+      background: none !important;
+    }
+    .compact-card .card-footer i { display: none; }
+
+    /* --- Іконки та посилання --- */
+    a { color: #000 !important; text-decoration: none !important; }
+    i { color: #000 !important; }
+    code { font-size: 7pt; }
+
+    /* --- Порожній стан --- */
+    .empty-state { padding: 30pt 15pt !important; }
+    .empty-state .empty-icon { font-size: 28pt !important; color: #ccc !important; }
+  }
+
+  /* === Екранний режим === */
+  @media screen {
+    .print-header { display: none; }
+    .print-status { display: none; }
+  }
+
+  /* === Акцент для картки оплати === */
+  .card-accent-info {
+    border-left: 4px solid #0dcaf0 !important;
+  }
+  .card-accent-info .card-header {
+    background-color: rgba(13, 202, 240, 0.05) !important;
+  }
+
+  /* === Компактний вигляд (екран) === */
+  .compact-card { margin-bottom: 0.5rem !important; }
+  .compact-card .card-header {
+    padding: 0.4rem 0.75rem !important; font-size: 0.8rem;
+  }
+  .compact-card .card-header code { font-size: 0.8rem; }
+  .compact-card .card-header .text-muted.small { font-size: 0.7rem !important; }
+  .compact-card .table thead th {
+    padding: 0.35rem 0.6rem !important; font-size: 0.65rem;
+  }
+  .compact-card .table tbody td {
+    padding: 0.3rem 0.6rem !important; font-size: 0.78rem;
+  }
+  .compact-card .table tfoot td {
+    padding: 0.35rem 0.6rem !important; font-size: 0.8rem;
+  }
+  .compact-card .table tfoot .fs-5 { font-size: 0.95rem !important; }
+  .compact-card .badge { font-size: 0.6rem !important; padding: 0.2em 0.45em !important; }
+  .compact-card .card-footer {
+    padding: 0.3rem 0.75rem !important; font-size: 0.7rem !important;
+  }
+  .compact-card .card-footer i { display: none; }
+  .compact-card code { font-size: 0.7rem; padding: 0.05rem 0.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Друкований заголовок (видно тільки при друці) -->
+<div class="print-header">
+    <div>
+        <h1>Закупівлі: {{ supplier.name }}</h1>
+    </div>
+    <div class="print-meta">
+        <div>{% now "d.m.Y H:i" %}</div>
+        {% if filter_from or filter_to %}
+        <div>
+            Фільтр: з {{ filter_from|date:"d.m.Y"|default:"—" }}
+            по {{ filter_to|date:"d.m.Y"|default:"—" }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-1 no-print">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-cart-plus me-2"></i>Закупівлі від {{ supplier.name }}
+        </h1>
+        <p class="text-muted mb-0 small">
+            <i class="bi-truck me-1"></i>{{ supplier.name }}
+            {% if supplier.phone %}
+            &middot; <a href="tel:{{ supplier.phone }}" class="text-decoration-none">{{ supplier.phone }}</a>
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="bi-printer me-1"></i>Друк
+        </button>
+        <a href="{% url 'supplier_list' %}" class="btn btn-outline-secondary">
+            <i class="bi-arrow-left me-1"></i>До списку
+        </a>
+        <a href="{% url 'payment_list' %}?supplier={{ supplier.pk }}" class="btn btn-outline-success"
+           title="Перейти до розрахунків">
+            <i class="bi-credit-card me-1"></i>Розрахунки
+        </a>
+        <a href="{% url 'purchase_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Нове замовлення
+        </a>
+    </div>
+</div>
+
+<!-- Фільтр за датою -->
+<div class="card mb-2 no-print">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="dateFrom" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Дата від
+                </label>
+                <input type="date" id="dateFrom" name="date_from"
+                       class="form-control form-control-sm"
+                       value="{{ filter_from|date:'Y-m-d'|default:'' }}"
+                       {% if filter_to %}max="{{ filter_to|date:'Y-m-d' }}"{% endif %}>
+            </div>
+            <div class="col-auto">
+                <label for="dateTo" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Дата до
+                </label>
+                <input type="date" id="dateTo" name="date_to"
+                       class="form-control form-control-sm"
+                       value="{{ filter_to|date:'Y-m-d'|default:'' }}"
+                       {% if filter_from %}min="{{ filter_from|date:'Y-m-d' }}"{% endif %}>
+            </div>
+            <div class="col-auto d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi-funnel me-1"></i>Фільтр
+                </button>
+                {% if filter_from or filter_to %}
+                <a href="{% url 'supplier_purchases' supplier.pk %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi-x-lg"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if filter_from or filter_to %}
+<div class="alert alert-info d-flex align-items-center gap-2 py-1 mb-2 no-print" role="alert">
+    <i class="bi-funnel"></i>
+    <span>
+        Показано закупівлі та оплати
+        {% if filter_from %}з <strong>{{ filter_from|date:"d.m.Y" }}</strong>{% endif %}
+        {% if filter_from and filter_to %}&nbsp;до&nbsp;{% endif %}
+        {% if filter_to %}по <strong>{{ filter_to|date:"d.m.Y" }}</strong>{% endif %}
+    </span>
+    <span class="ms-auto text-muted small">Записів: {{ combined|length }}</span>
+</div>
+{% endif %}
+
+{% if combined %}
+    {% for item in combined %}
+    {% if item.type == 'purchase' %}
+    {% with purchase=item.obj %}
+    <div class="card compact-card card-accent-{% if purchase.status == 'received' %}success{% elif purchase.status == 'cancelled' %}danger{% elif purchase.status == 'ordered' %}primary{% elif purchase.status == 'partially_received' %}warning{% else %}secondary{% endif %}">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <strong>
+                    <a href="{% url 'purchase_detail' purchase.pk %}" class="text-decoration-none">
+                        <i class="bi-cart-plus me-1"></i><code>{{ purchase.order_number }}</code>
+                    </a>
+                </strong>
+                <span class="ms-2">
+                    {% if purchase.status == 'draft' %}
+                        <span class="badge bg-secondary">Чернетка</span>
+                        <span class="print-status draft">Чернетка</span>
+                    {% elif purchase.status == 'ordered' %}
+                        <span class="badge bg-primary">Замовлено</span>
+                        <span class="print-status ordered">Замовлено</span>
+                    {% elif purchase.status == 'partially_received' %}
+                        <span class="badge bg-warning text-dark">Частково отримано</span>
+                        <span class="print-status partial">Частково отримано</span>
+                    {% elif purchase.status == 'received' %}
+                        <span class="badge bg-success">Отримано</span>
+                        <span class="print-status received">Отримано</span>
+                    {% elif purchase.status == 'cancelled' %}
+                        <span class="badge bg-danger">Скасовано</span>
+                        <span class="print-status cancelled">Скасовано</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="text-muted small">
+                <i class="bi-calendar3 me-1"></i>{{ purchase.created_at|date:"d.m.Y H:i" }}
+                {% if purchase.created_by %}
+                &middot; <i class="bi-person me-1"></i>{{ purchase.created_by.user.get_full_name|default:purchase.created_by.user.username }}
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Запчастина</th>
+                            <th>Артикул</th>
+                            <th>Кількість</th>
+                            <th>Ціна за од.</th>
+                            <th class="text-end">Сума</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for po_item in purchase.items.all %}
+                        <tr>
+                            <td class="fw-semibold">{{ po_item.part.name }}</td>
+                            <td><code>{{ po_item.part.part_number|default:"—" }}</code></td>
+                            <td>
+                                {{ po_item.quantity_ordered|floatformat:0 }} {{ po_item.part.get_unit_display }}
+                            </td>
+                            <td>{{ po_item.unit_price|floatformat:2 }} грн</td>
+                            <td class="text-end fw-semibold">{{ po_item.total_price|floatformat:2 }} грн</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Загальна сума:</td>
+                            <td class="text-end fw-bold fs-5">{{ purchase.total_amount|floatformat:2 }} грн</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% if purchase.notes %}
+        <div class="card-footer text-muted small">
+            <i class="bi-chat-left-text me-1"></i>{{ purchase.notes|linebreaksbr }}
+        </div>
+        {% endif %}
+    </div>
+    {% endwith %}
+    {% elif item.type == 'payment' %}
+    {% with payment=item.obj %}
+    <div class="card compact-card card-accent-info">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <strong>
+                    <a href="{% url 'payment_update' payment.pk %}" class="text-decoration-none">
+                        <i class="bi-credit-card me-1"></i><code>{{ payment.payment_number }}</code>
+                    </a>
+                </strong>
+                <span class="ms-2">
+                    {% if payment.status == 'completed' %}
+                        <span class="badge bg-success">Проведено</span>
+                        <span class="print-status received">Проведено</span>
+                    {% elif payment.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">Очікується</span>
+                        <span class="print-status partial">Очікується</span>
+                    {% elif payment.status == 'cancelled' %}
+                        <span class="badge bg-danger">Скасовано</span>
+                        <span class="print-status cancelled">Скасовано</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="text-muted small">
+                <i class="bi-calendar3 me-1"></i>{{ payment.payment_date|date:"d.m.Y" }}
+                {% if payment.created_by %}
+                &middot; <i class="bi-person me-1"></i>{{ payment.created_by.user.get_full_name|default:payment.created_by.user.username }}
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Спосіб оплати</th>
+                            <th>Сума</th>
+                            <th>Статус</th>
+                            <th>Замовлення</th>
+                            <th>Нотатки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                {% if payment.payment_type == 'cash' %}Готівка
+                                {% elif payment.payment_type == 'bank_transfer' %}Банківський переказ
+                                {% elif payment.payment_type == 'card' %}Картка
+                                {% else %}Інше{% endif %}
+                            </td>
+                            <td class="fw-semibold">{{ payment.amount|floatformat:2 }} грн</td>
+                            <td>
+                                {% if payment.status == 'completed' %}
+                                    <span class="badge bg-success">Проведено</span>
+                                {% elif payment.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Очікується</span>
+                                {% elif payment.status == 'cancelled' %}
+                                    <span class="badge bg-danger">Скасовано</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if payment.purchase_order %}
+                                    <a href="{% url 'purchase_detail' payment.purchase_order.pk %}">
+                                        <code>{{ payment.purchase_order.order_number }}</code>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small">{{ payment.notes|truncatewords:8|default:"—" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <div class="empty-icon mb-3">
+            <i class="bi-clock-history" style="font-size: 3rem;"></i>
+        </div>
+        <h4>Немає записів</h4>
+        <p class="text-muted mb-3">
+            У постачальника <strong>{{ supplier.name }}</strong> ще немає закупівель або оплат
+            {% if filter_from or filter_to %} за обраний період{% endif %}.
+        </p>
+        <div class="d-flex justify-content-center gap-2">
+            <a href="{% url 'purchase_create' %}" class="btn btn-primary">
+                <i class="bi-plus-lg me-1"></i>Створити замовлення
+            </a>
+            <a href="{% url 'payment_list' %}?supplier={{ supplier.pk }}" class="btn btn-outline-success">
+                <i class="bi-credit-card me-1"></i>Додати оплату
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-2 no-print">
+    <a href="{% url 'supplier_list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi-arrow-left me-1"></i>До списку постачальників
+    </a>
+</div>
+{% endblock %}

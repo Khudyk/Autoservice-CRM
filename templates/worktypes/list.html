@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Види робіт{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-tools me-2"></i>Види робіт
+        </h1>
+        {% if selected_company %}
+        <p class="text-muted mb-0 small">
+            <i class="bi-building me-1"></i>{{ selected_company.name }}
+        </p>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'worktype_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Новий вид роботи
+        </a>
+    </div>
+</div>
+
+{% if companies|length > 1 %}
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="companyFilter" class="form-label fw-semibold mb-1">
+                    <i class="bi-funnel me-1"></i>Фільтр за компанією
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="company" id="companyFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— Усі компанії —</option>
+                    {% for company in companies %}
+                    <option value="{{ company.pk }}" {% if selected_company.pk == company.pk %}selected{% endif %}>
+                        {{ company.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-accent-blue">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Назва</th>
+                        <th>Категорія</th>
+                        <th>Статус</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for worktype in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">{{ worktype.name }}</td>
+                        <td>
+                            {% if worktype.category == 'repair' %}
+                                <span class="badge bg-primary">Ремонт</span>
+                            {% elif worktype.category == 'maintenance' %}
+                                <span class="badge bg-success">Обслуговування</span>
+                            {% elif worktype.category == 'diagnostics' %}
+                                <span class="badge bg-info text-dark">Діагностика</span>
+                            {% elif worktype.category == 'body' %}
+                                <span class="badge bg-warning text-dark">Кузовні роботи</span>
+                            {% elif worktype.category == 'electrical' %}
+                                <span class="badge bg-danger">Електрика</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Інше</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if worktype.is_active %}
+                                <span class="badge bg-success">Активна</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Неактивна</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end action-btns">
+                            {% if can_edit %}
+                            <a href="{% url 'worktype_update' worktype.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Редагувати">
+                                <i class="bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'worktype_delete' worktype.pk %}" class="btn btn-sm btn-outline-danger"
+                               title="Видалити">
+                                <i class="bi-trash"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <div class="empty-icon"><i class="bi-tools"></i></div>
+                            <h5>Немає видів робіт</h5>
+                            <p>Додайте перший вид робіт, щоб почати роботу.</p>
+                            {% if can_edit %}
+                            <a href="{% url 'worktype_create' %}" class="btn btn-primary btn-sm">
+                                <i class="bi-plus-lg me-1"></i>Додати вид роботи
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

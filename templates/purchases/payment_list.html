@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Платежі постачальникам{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-credit-card me-2"></i>Платежі постачальникам
+        </h1>
+    </div>
+    <div class="d-flex gap-2">
+        {% if can_edit %}
+        <a href="{% url 'payment_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Новий платіж
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{# --- Фільтр --- #}
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="dateFrom" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Період
+                </label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="dateFrom" name="date_from"
+                       value="{{ filter_from|date:'Y-m-d' }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-auto">
+                <span class="text-muted px-1">—</span>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="dateTo" name="date_to"
+                       value="{{ filter_to|date:'Y-m-d' }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-auto">
+                <label for="supplierFilter" class="form-label fw-semibold mb-1">
+                    <i class="bi-truck me-1"></i>Постачальник
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="supplier" id="supplierFilter" class="form-select form-select-sm">
+                    <option value="">— Усі —</option>
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.pk }}"
+                            {% if selected_supplier.pk == supplier.pk %}selected{% endif %}>
+                        {{ supplier.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi-funnel me-1"></i>Застосувати
+                </button>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'payment_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi-x-lg me-1"></i>Скинути
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card card-accent-green">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Номер</th>
+                        <th>Постачальник</th>
+                        <th class="text-end">Сума</th>
+                        <th>Спосіб оплати</th>
+                        <th>Статус</th>
+                        <th>Замовлення</th>
+                        <th>Нотатки</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in page_obj %}
+                    <tr>
+                        <td class="text-nowrap small">{{ payment.payment_date|date:"d.m.Y" }}</td>
+                        <td class="small"><code>{{ payment.payment_number }}</code></td>
+                        <td class="fw-semibold small">{{ payment.supplier.name }}</td>
+                        <td class="text-end fw-semibold">{{ payment.amount|floatformat:2 }}</td>
+                        <td class="small">{{ payment.get_payment_type_display }}</td>
+                        <td class="small">
+                            {% if payment.status == 'completed' %}
+                                <span class="badge bg-success">Проведено</span>
+                            {% elif payment.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Очікується</span>
+                            {% elif payment.status == 'cancelled' %}
+                                <span class="badge bg-secondary">Скасовано</span>
+                            {% else %}
+                                <span class="badge bg-info">{{ payment.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {% if payment.purchase_order %}
+                            <a href="{% url 'purchase_detail' payment.purchase_order.pk %}">
+                                {{ payment.purchase_order.order_number }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ payment.notes|default:"—"|truncatewords:8 }}</td>
+                        <td class="text-end action-btns">
+                            {% if can_edit %}
+                            <a href="{% url 'payment_update' payment.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Редагувати">
+                                <i class="bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'payment_delete' payment.pk %}" class="btn btn-sm btn-outline-danger"
+                               title="Видалити">
+                                <i class="bi-trash"></i>
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-icon"><i class="bi-credit-card"></i></div>
+                            <h5>Немає платежів</h5>
+                            <p>За вибраний період платежів не знайдено.</p>
+                            {% if can_edit %}
+                            <a href="{% url 'payment_create' %}" class="btn btn-primary btn-sm">
+                                <i class="bi-plus-lg me-1"></i>Додати платіж
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

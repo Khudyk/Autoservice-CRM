@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Клієнти{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-person-badge me-2"></i>Клієнти
+        </h1>
+        {% if selected_company %}
+        <p class="text-muted mb-0 small">
+            <i class="bi-building me-1"></i>{{ selected_company.name }}
+        </p>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'client_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Новий клієнт
+        </a>
+        {% if can_edit %}
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#clientQuickModal"
+                title="Швидко додати клієнта">
+            <i class="bi-lightning me-1"></i>Швидко додати
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if companies|length > 1 %}
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="companyFilter" class="form-label fw-semibold mb-1">
+                    <i class="bi-funnel me-1"></i>Фільтр за компанією
+                </label>
+            </div>
+            <div class="col-auto">
+                <select name="company" id="companyFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">— Усі компанії —</option>
+                    {% for company in companies %}
+                    <option value="{{ company.pk }}" {% if selected_company.pk == company.pk %}selected{% endif %}>
+                        {{ company.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-accent-blue">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>ПІБ / Назва</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Нотатки</th>
+                        <th>Компанія</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">
+                            <a href="{% url 'client_detail' client.pk %}" class="text-decoration-none">
+                                {{ client.get_full_name }}
+                            </a>
+                        </td>
+                        <td>{{ client.phone }}</td>
+                        <td>{{ client.email|default:"—" }}</td>
+                        <td>{{ client.notes|default:"—"|truncatewords:10 }}</td>
+                        <td><span class="badge bg-info bg-opacity-25 text-dark">{{ client.company.name }}</span></td>
+                        <td class="text-end action-btns">
+                            <a href="{% url 'client_update' client.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Редагувати">
+                                <i class="bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'client_delete' client.pk %}" class="btn btn-sm btn-outline-danger"
+                               title="Видалити">
+                                <i class="bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="empty-icon"><i class="bi-person-badge"></i></div>
+                            <h5>Немає клієнтів</h5>
+                            <p>Додайте першого клієнта до бази даних.</p>
+                            <a href="{% url 'client_create' %}" class="btn btn-primary btn-sm">
+                                <i class="bi-plus-lg me-1"></i>Додати клієнта
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if can_edit %}
+<!-- ============================================================ -->
+<!-- МОДАЛЬНЕ ВІКНО: Швидке створення клієнта                     -->
+<!-- ============================================================ -->
+<div class="modal fade" id="clientQuickModal" tabindex="-1"
+     aria-labelledby="clientQuickModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clientQuickModalLabel">
+                    <i class="bi-person-badge me-2"></i>Новий клієнт
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <form id="clientQuickForm">
+                <div class="modal-body">
+                    <div class="modal-feedback alert alert-danger d-none" id="clientQuickErrors"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="cq_first_name" class="form-label">Ім'я / Назва</label>
+                            <input type="text" class="form-control" id="cq_first_name" name="first_name"
+                                   placeholder="Ім'я або назва організації">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cq_last_name" class="form-label">Прізвище</label>
+                            <input type="text" class="form-control" id="cq_last_name" name="last_name"
+                                   placeholder="Прізвище">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cq_phone" class="form-label">Телефон <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="cq_phone" name="phone"
+                                   inputmode="numeric" pattern="[0-9]+"
+                                   placeholder="380501234567" maxlength="12" required
+                                   data-phone-input="true">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cq_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="cq_email" name="email"
+                                   placeholder="client@example.com">
+                        </div>
+                        <div class="col-12">
+                            <label for="cq_notes" class="form-label">Нотатки</label>
+                            <textarea class="form-control" id="cq_notes" name="notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary" id="clientQuickSubmit">
+                        <span class="spinner-border spinner-border-sm d-none" id="clientQuickSpinner" role="status"></span>
+                        <i class="bi-check-lg me-1"></i>Створити
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    var modalEl = document.getElementById('clientQuickModal');
+    if (!modalEl) return;
+
+    var form = document.getElementById('clientQuickForm');
+    var submitBtn = document.getElementById('clientQuickSubmit');
+    var spinner = document.getElementById('clientQuickSpinner');
+    var errorsDiv = document.getElementById('clientQuickErrors');
+
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Фільтр телефону — лише цифри
+    function filterPhoneDigits(e) {
+        this.value = this.value.replace(/\D/g, '');
+    }
+    var phoneInput = document.getElementById('cq_phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', filterPhoneDigits);
+    }
+
+    // Скидання при закритті
+    modalEl.addEventListener('hidden.bs.modal', function() {
+        form.reset();
+        errorsDiv.classList.add('d-none');
+        errorsDiv.innerHTML = '';
+        submitBtn.disabled = false;
+        spinner.classList.add('d-none');
+    });
+
+    // Сабміт
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        var formData = new FormData(form);
+
+        submitBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        errorsDiv.classList.add('d-none');
+        errorsDiv.innerHTML = '';
+
+        fetch('{% url "client_quick_create" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: formData,
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                // Показати успіх і перезавантажити сторінку
+                var toast = document.createElement('div');
+                toast.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-4';
+                toast.style.zIndex = '9999';
+                toast.innerHTML = '<i class="bi-check-circle me-2"></i>Клієнта створено!'
+                    + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                document.body.appendChild(toast);
+                setTimeout(function() {
+                    location.reload();
+                }, 600);
+            } else {
+                var errorHtml = '';
+                if (data.errors) {
+                    for (var field in data.errors) {
+                        if (data.errors.hasOwnProperty(field)) {
+                            var msgs = Array.isArray(data.errors[field])
+                                ? data.errors[field]
+                                : [data.errors[field]];
+                            msgs.forEach(function(msg) {
+                                errorHtml += '<div>' + msg + '</div>';
+                            });
+                        }
+                    }
+                }
+                if (!errorHtml) errorHtml = '<div>Невідома помилка</div>';
+                errorsDiv.innerHTML = errorHtml;
+                errorsDiv.classList.remove('d-none');
+                submitBtn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        })
+        .catch(function(err) {
+            errorsDiv.innerHTML = '<div>Помилка з\'єднання: ' + err.message + '</div>';
+            errorsDiv.classList.remove('d-none');
+            submitBtn.disabled = false;
+            spinner.classList.add('d-none');
+        });
+    });
+})();
+</script>
+{% endblock %}
+{% endif %}
+{% endblock %}

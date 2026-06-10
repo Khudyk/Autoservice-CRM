@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Видалити клієнта{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3 mb-1">
+        <i class="bi-person-badge me-2"></i>Видалити клієнта
+    </h1>
+</div>
+
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <i class="bi-exclamation-triangle me-1"></i>Підтвердження видалення
+    </div>
+    <div class="card-body">
+        <p class="mb-0">
+            Ви впевнені, що хочете видалити клієнта
+            <strong>{{ client.get_full_name }}</strong> ({{ client.phone }})?
+        </p>
+        {% if client.vehicles.exists %}
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="bi-exclamation-circle me-1"></i>
+            У цього клієнта є автомобілі ({{ client.vehicles.count }} шт.).
+            Після видалення клієнта зв'язок з автомобілями буде втрачено
+            (поле «Власник» стане порожнім).
+        </div>
+        {% endif %}
+        <hr>
+        <form method="post" class="d-flex gap-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <i class="bi-trash me-1"></i>Так, видалити
+            </button>
+            <a href="{% url 'client_list' %}" class="btn btn-outline-secondary">
+                <i class="bi-x-lg me-1"></i>Скасувати
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

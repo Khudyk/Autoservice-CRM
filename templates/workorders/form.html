@@ -1,0 +1,682 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Компактніший вигляд для таблиці запчастин */
+#parts-table td select,
+#parts-table td input {
+    font-size: 0.85rem;
+}
+/* Кнопка "+" у input-group */
+.input-group .btn-outline-primary {
+    border-color: #dee2e6;
+}
+.input-group .btn-outline-primary:hover {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+}
+/* Спінер завантаження в модалці */
+.modal-feedback {
+    display: none;
+}
+.modal-feedback.show {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">{{ title }}</h1>
+    <a href="{% url 'workorder_list' %}" class="btn btn-outline-secondary">
+        <i class="bi-arrow-left me-1"></i>До списку
+    </a>
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+            {{ error }}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Інформація про компанію та автора (тільки для читання) -->
+    <div class="card card-accent mb-4">
+        <div class="card-header"><h5 class="card-title mb-0">Основна інформація</h5></div>
+        <div class="card-body">
+            {% if user.is_authenticated and user.employee %}
+            <div class="row mb-3 text-muted small">
+                <div class="col-md-4">
+                    <i class="bi-building me-1"></i>Компанія: <strong>{{ user.employee.company.name }}</strong>
+                </div>
+                <div class="col-md-4">
+                    <i class="bi-person me-1"></i>Створює: <strong>{{ user.employee.user.get_full_name|default:user.employee.user.username }}</strong>
+                </div>
+            </div>
+            {% endif %}
+            <div class="row g-3">
+                <!-- Автомобіль з кнопкою швидкого додавання -->
+                <div class="col-md-4">
+                    <label for="{{ form.vehicle.id_for_label }}" class="form-label">
+                        {{ form.vehicle.label }}{% if form.vehicle.field.required %} <span class="text-danger">*</span>{% endif %}
+                    </label>
+                    <div class="input-group">
+                        {{ form.vehicle }}
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#vehicleQuickModal"
+                                title="Швидко додати автомобіль">
+                            <i class="bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    {% if form.vehicle.help_text %}
+                    <div class="form-text">{{ form.vehicle.help_text }}</div>
+                    {% endif %}
+                    {% for error in form.vehicle.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <!-- Клієнт з кнопкою швидкого додавання -->
+                <div class="col-md-4">
+                    <label for="{{ form.client.id_for_label }}" class="form-label">
+                        {{ form.client.label }}{% if form.client.field.required %} <span class="text-danger">*</span>{% endif %}
+                    </label>
+                    <div class="input-group">
+                        {{ form.client }}
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#clientQuickModal"
+                                title="Швидко додати клієнта">
+                            <i class="bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    {% if form.client.help_text %}
+                    <div class="form-text">{{ form.client.help_text }}</div>
+                    {% endif %}
+                    {% for error in form.client.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <!-- Решта полів форми (mileage, status, notes) -->
+                {% for field in form %}
+                    {% if field.name not in 'vehicle,client' %}
+                    <div class="col-md-4">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                            {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% for error in field.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Роботи / Послуги -->
+    <div class="card card-accent-blue mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Роботи та послуги</h5>
+        </div>
+        <div class="card-body">
+            {{ service_formset.management_form }}
+            {% if service_formset.non_form_errors %}
+            <div class="alert alert-danger">
+                {% for err in service_formset.non_form_errors %}
+                    {{ err }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Вид роботи</th>
+                            <th>Кількість</th>
+                            <th>Ціна за од.</th>
+                            <th>Виконавець</th>
+                            <th>Опис</th>
+                            <th class="text-center" style="width:50px;">✕</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sf in service_formset %}
+                        <tr>
+                            <td>
+                                {{ sf.id }}{{ sf.work_type }}
+                                {% for error in sf.work_type.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {{ sf.quantity }}
+                                {% for error in sf.quantity.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {{ sf.unit_price }}
+                                {% for error in sf.unit_price.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {{ sf.employee }}
+                                {% for error in sf.employee.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {{ sf.description }}
+                                {% for error in sf.description.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </td>
+                            <td class="text-center">{{ sf.DELETE }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Запчастини -->
+    <div class="card card-accent mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Запчастини</h5>
+        </div>
+        <div class="card-body">
+            {{ part_formset.management_form }}
+            {% if part_formset.non_form_errors %}
+            <div class="alert alert-danger">
+                {% for err in part_formset.non_form_errors %}
+                    {{ err }}
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="table-responsive">
+                <table id="parts-table" class="table table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Запчастина</th>
+                    <th>Кількість</th>
+                    <th>Ціна за од.</th>
+                    <th>Партія закупівлі</th>
+                    <th class="text-center" style="width:50px;">✕</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pf in part_formset %}
+                <tr>
+                    <td>
+                        {{ pf.id }}{{ pf.part }}
+                        {% for error in pf.part.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {{ pf.quantity }}
+                        {% for error in pf.quantity.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {{ pf.unit_price }}
+                        {% for error in pf.unit_price.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {{ pf.part_lot }}
+                        {% for error in pf.part_lot.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </td>
+                    <td class="text-center">{{ pf.DELETE }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{% url 'workorder_list' %}" class="btn btn-secondary">Скасувати</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi-check-lg me-1"></i>Зберегти
+        </button>
+    </div>
+</form>
+
+{{ lot_data|json_script:"lot-data" }}
+{{ part_prices|json_script:"part-prices" }}
+{{ vehicle_client_map|json_script:"vehicle-client-map" }}
+
+<!-- ============================================================ -->
+<!-- МОДАЛЬНЕ ВІКНО: Швидке створення автомобіля                   -->
+<!-- ============================================================ -->
+<div class="modal fade" id="vehicleQuickModal" tabindex="-1"
+     aria-labelledby="vehicleQuickModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="vehicleQuickModalLabel">
+                    <i class="bi-car-front me-2"></i>Новий автомобіль
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <form id="vehicleQuickForm">
+                <div class="modal-body">
+                    <div class="modal-feedback alert alert-danger d-none" id="vehicleQuickErrors"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="vq_vin_code" class="form-label">VIN-код <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vq_vin_code" name="vin_code"
+                                   maxlength="17" placeholder="17 символів VIN-коду" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="vq_brand" class="form-label">Марка <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vq_brand" name="brand"
+                                   placeholder="Напр. Toyota" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_model" class="form-label">Модель <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vq_model" name="model"
+                                   placeholder="Напр. Camry" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_year" class="form-label">Рік випуску <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="vq_year" name="year"
+                                   min="1900" max="2027" placeholder="2024" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_engine_type" class="form-label">Тип двигуна</label>
+                            <select class="form-select" id="vq_engine_type" name="engine_type">
+                                <option value="petrol">Бензин</option>
+                                <option value="diesel">Дизель</option>
+                                <option value="electric">Електрика</option>
+                                <option value="hybrid">Гібрид</option>
+                                <option value="gas">Газ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_engine_displacement" class="form-label">Об'єм двигуна, л</label>
+                            <input type="number" class="form-control" id="vq_engine_displacement"
+                                   name="engine_displacement" step="0.1" placeholder="2.0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary" id="vehicleQuickSubmit">
+                        <span class="spinner-border spinner-border-sm d-none" id="vehicleQuickSpinner" role="status"></span>
+                        <i class="bi-check-lg me-1"></i>Створити та додати
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- МОДАЛЬНЕ ВІКНО: Швидке створення клієнта                      -->
+<!-- ============================================================ -->
+<div class="modal fade" id="clientQuickModal" tabindex="-1"
+     aria-labelledby="clientQuickModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clientQuickModalLabel">
+                    <i class="bi-person-badge me-2"></i>Новий клієнт
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <form id="clientQuickForm">
+                <div class="modal-body">
+                    <div class="modal-feedback alert alert-danger d-none" id="clientQuickErrors"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="cq_first_name" class="form-label">Ім'я / Назва <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="cq_first_name" name="first_name"
+                                   placeholder="Ім'я або назва організації">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cq_last_name" class="form-label">Прізвище</label>
+                            <input type="text" class="form-control" id="cq_last_name" name="last_name"
+                                   placeholder="Прізвище">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cq_phone" class="form-label">Телефон <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="cq_phone" name="phone"
+                                   inputmode="numeric" pattern="[0-9]+"
+                                   placeholder="380501234567" maxlength="12" required
+                                   data-phone-input="true">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cq_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="cq_email" name="email"
+                                   placeholder="client@example.com">
+                        </div>
+                        <div class="col-12">
+                            <label for="cq_notes" class="form-label">Нотатки</label>
+                            <textarea class="form-control" id="cq_notes" name="notes" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary" id="clientQuickSubmit">
+                        <span class="spinner-border spinner-border-sm d-none" id="clientQuickSpinner" role="status"></span>
+                        <i class="bi-check-lg me-1"></i>Створити та додати
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    // ================================================================
+    // 1. Автозаповнення клієнта при виборі автомобіля
+    // ================================================================
+    var vehicleClientMap = {};
+    (function() {
+        var el = document.getElementById('vehicle-client-map');
+        if (el) {
+            try { vehicleClientMap = JSON.parse(el.textContent); } catch(e) {}
+        }
+    })();
+
+    var vehicleField = document.getElementById('id_vehicle');
+    var clientField = document.getElementById('id_client');
+
+    if (vehicleField && clientField) {
+        function updateClient() {
+            var vid = vehicleField.value;
+            if (vid && vehicleClientMap[vid]) {
+                clientField.value = vehicleClientMap[vid];
+            } else {
+                clientField.value = '';
+            }
+        }
+        vehicleField.addEventListener('change', updateClient);
+        if (!clientField.value) {
+            updateClient();
+        }
+    }
+
+    // ================================================================
+    // 2. Дані для фільтрації партій та цін
+    // ================================================================
+    var lotData = JSON.parse(document.getElementById('lot-data').textContent);
+    var partPrices = JSON.parse(document.getElementById('part-prices').textContent);
+    var mgmt = document.getElementById('id_parts-TOTAL_FORMS');
+    if (!mgmt) return;
+    var prefix = mgmt.name.replace('-TOTAL_FORMS', '');
+
+    function filterLots(index) {
+        var partSelect = document.getElementById('id_' + prefix + '-' + index + '-part');
+        var lotSelect = document.getElementById('id_' + prefix + '-' + index + '-part_lot');
+        if (!partSelect || !lotSelect) return;
+
+        var selectedPartId = parseInt(partSelect.value, 10);
+        var currentLotId = parseInt(lotSelect.value, 10) || 0;
+
+        var matching = selectedPartId
+            ? lotData.filter(function(l) { return l.part_id === selectedPartId; })
+            : [];
+
+        lotSelect.innerHTML = '';
+        var emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '---------';
+        lotSelect.appendChild(emptyOpt);
+
+        matching.forEach(function(lot) {
+            var opt = document.createElement('option');
+            opt.value = lot.id;
+            opt.textContent = lot.display;
+            if (lot.id === currentLotId) opt.selected = true;
+            lotSelect.appendChild(opt);
+        });
+
+        if (currentLotId && !matching.some(function(l) { return l.id === currentLotId; })) {
+            lotSelect.value = '';
+        }
+    }
+
+    function autoFillUnitPrice(index) {
+        var partSelect = document.getElementById('id_' + prefix + '-' + index + '-part');
+        var priceInput = document.getElementById('id_' + prefix + '-' + index + '-unit_price');
+        if (!partSelect || !priceInput) return;
+
+        var selectedPartId = partSelect.value;
+        var currentPrice = parseFloat(priceInput.value) || 0;
+
+        if (selectedPartId && partPrices[selectedPartId] && currentPrice === 0) {
+            priceInput.value = partPrices[selectedPartId];
+        }
+    }
+
+    var totalFormsInput = document.getElementById('id_' + prefix + '-TOTAL_FORMS');
+    if (!totalFormsInput) return;
+
+    function initAllRows() {
+        var total = parseInt(totalFormsInput.value, 10) || 0;
+        for (var i = 0; i < total; i++) {
+            var partSelect = document.getElementById('id_' + prefix + '-' + i + '-part');
+            if (partSelect) {
+                partSelect.removeEventListener('change', partChangeHandler);
+                partSelect.addEventListener('change', partChangeHandler);
+            }
+            filterLots(i);
+            autoFillUnitPrice(i);
+        }
+    }
+
+    function partChangeHandler() {
+        var idParts = this.id.split('-');
+        var idx = parseInt(idParts[1], 10);
+        if (isNaN(idx)) return;
+        filterLots(idx);
+        autoFillUnitPrice(idx);
+    }
+
+    initAllRows();
+    var partsTable = document.querySelector('#parts-table tbody');
+    if (partsTable) {
+        var observer = new MutationObserver(function() { initAllRows(); });
+        observer.observe(partsTable, { childList: true });
+    }
+
+    // ================================================================
+    // 3. Швидке створення — універсальна функція
+    // ================================================================
+
+    /**
+     * Відправляє AJAX-запит на створення об'єкта та оновлює select.
+     * @param {string} url - Ендпоінт (vehicle_quick_create / client_quick_create)
+     * @param {string} formId - ID форми в модалці
+     * @param {string} selectId - ID select-поля, яке потрібно оновити
+     * @param {string} submitBtnId - ID кнопки submit
+     * @param {string} spinnerId - ID спінера
+     * @param {string} errorsId - ID контейнера помилок
+     * @param {string} modalId - ID модального вікна
+     */
+    function quickCreate(url, formId, selectId, submitBtnId, spinnerId, errorsId, modalId) {
+        var form = document.getElementById(formId);
+        if (!form) return;
+
+        var formData = new FormData(form);
+        var submitBtn = document.getElementById(submitBtnId);
+        var spinner = document.getElementById(spinnerId);
+        var errorsDiv = document.getElementById(errorsId);
+        var modalEl = document.getElementById(modalId);
+        var modal = bootstrap.Modal.getInstance(modalEl);
+        if (!modal) modal = new bootstrap.Modal(modalEl);
+
+        // Показуємо спінер, блокуємо кнопку
+        submitBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        errorsDiv.classList.add('d-none');
+        errorsDiv.innerHTML = '';
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: formData,
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                // Додаємо новий option до select
+                var select = document.getElementById(selectId);
+                var opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.display;
+                select.appendChild(opt);
+                select.value = data.id;
+                select.dispatchEvent(new Event('change'));
+
+                // Закриваємо модалку
+                modal.hide();
+
+                // Скидаємо форму
+                form.reset();
+            } else {
+                // Показуємо помилки
+                var errorHtml = '';
+                if (data.errors) {
+                    for (var field in data.errors) {
+                        if (data.errors.hasOwnProperty(field)) {
+                            var msgs = Array.isArray(data.errors[field])
+                                ? data.errors[field]
+                                : [data.errors[field]];
+                            msgs.forEach(function(msg) {
+                                errorHtml += '<div>' + msg + '</div>';
+                            });
+                        }
+                    }
+                }
+                if (!errorHtml) errorHtml = '<div>Невідома помилка</div>';
+                errorsDiv.innerHTML = errorHtml;
+                errorsDiv.classList.remove('d-none');
+            }
+        })
+        .catch(function(err) {
+            errorsDiv.innerHTML = '<div>Помилка з\'єднання з сервером: ' + err.message + '</div>';
+            errorsDiv.classList.remove('d-none');
+        })
+        .finally(function() {
+            submitBtn.disabled = false;
+            spinner.classList.add('d-none');
+        });
+    }
+
+    // Отримання CSRF-токена з cookies
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // ================================================================
+    // 4. Обробники подій для модальних вікон
+    // ================================================================
+
+    // Автомобіль
+    var vehicleForm = document.getElementById('vehicleQuickForm');
+    if (vehicleForm) {
+        vehicleForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            quickCreate(
+                '{% url "vehicle_quick_create" %}',
+                'vehicleQuickForm',
+                'id_vehicle',
+                'vehicleQuickSubmit',
+                'vehicleQuickSpinner',
+                'vehicleQuickErrors',
+                'vehicleQuickModal'
+            );
+        });
+    }
+
+    // Клієнт
+    var clientForm = document.getElementById('clientQuickForm');
+    if (clientForm) {
+        clientForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            quickCreate(
+                '{% url "client_quick_create" %}',
+                'clientQuickForm',
+                'id_client',
+                'clientQuickSubmit',
+                'clientQuickSpinner',
+                'clientQuickErrors',
+                'clientQuickModal'
+            );
+        });
+    }
+
+    // Скидаємо форми при закритті модалок
+    document.getElementById('vehicleQuickModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('vehicleQuickForm').reset();
+        document.getElementById('vehicleQuickErrors').classList.add('d-none');
+        document.getElementById('vehicleQuickErrors').innerHTML = '';
+    });
+    document.getElementById('clientQuickModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('clientQuickForm').reset();
+        document.getElementById('clientQuickErrors').classList.add('d-none');
+        document.getElementById('clientQuickErrors').innerHTML = '';
+    });
+
+    // ================================================================
+    // 5. Фільтрація телефону — лише цифри
+    // ================================================================
+    /**
+     * Фільтрує введення в телефонному полі: залишає лише цифри.
+     * @param {Event} e - input event
+     */
+    function filterPhoneDigits(e) {
+        this.value = this.value.replace(/\D/g, '');
+    }
+
+    // Фільтр для поля телефону в модалці клієнта
+    var phoneInput = document.getElementById('cq_phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', filterPhoneDigits);
+    }
+
+    // Фільтр для всіх полів з data-phone-input (перевикористання)
+    document.querySelectorAll('[data-phone-input]').forEach(function(el) {
+        el.addEventListener('input', filterPhoneDigits);
+    });
+
+})();
+</script>
+{% endblock %}
+{% endblock %}

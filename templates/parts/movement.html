@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Рух запчастини — {{ part.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-arrow-left-right me-2"></i>Рух запчастини
+        </h1>
+        <p class="text-muted mb-0 small">
+            <i class="bi-box-seam me-1"></i>{{ part.name }}
+            {% if part.part_number %}<code class="ms-2">{{ part.part_number }}</code>{% endif %}
+            {% if part.manufacturer %}<span class="ms-2 text-secondary">| {{ part.manufacturer }}</span>{% endif %}
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'part_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi-arrow-left me-1"></i>До списку
+        </a>
+    </div>
+</div>
+
+{# --- Фільтр за датою --- #}
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="dateFrom" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Період
+                </label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="dateFrom" name="date_from"
+                       value="{{ date_from }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-auto">
+                <span class="text-muted px-1">—</span>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="dateTo" name="date_to"
+                       value="{{ date_to }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi-funnel me-1"></i>Застосувати
+                </button>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'part_movement' part.pk %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi-x-lg me-1"></i>Скинути
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="text-muted small">
+        <span class="badge bg-success me-1">{{ purchases_count }}</span> прихідних
+        <span class="ms-2 badge bg-warning text-dark me-1">{{ workorders_count }}</span> нарядів
+    </div>
+</div>
+
+{% if combined %}
+    {% for entry in combined %}
+    {% if entry.type == 'purchase' %}
+    {% with item=entry.obj %}
+    <div class="card compact-card card-accent-success">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <strong>
+                    <i class="bi-box-arrow-in-down text-success me-1"></i>
+                    <a href="{% url 'purchase_update' item.purchase_order.pk %}" class="text-decoration-none">
+                        <code>{{ item.purchase_order.order_number }}</code>
+                    </a>
+                </strong>
+                <span class="ms-2 text-muted small">{{ item.purchase_order.supplier.name }}</span>
+            </div>
+            <div class="text-muted small">
+                <i class="bi-calendar3 me-1"></i>{{ item.purchase_order.created_at|date:"d.m.Y H:i" }}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 table-sm">
+                    <thead>
+                        <tr>
+                            <th>Кількість</th>
+                            <th>Ціна за од.</th>
+                            <th class="text-end">Сума</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ item.quantity_received|floatformat:2 }}</td>
+                            <td>{{ item.unit_price|floatformat:2 }} грн</td>
+                            <td class="text-end fw-semibold">{{ item.received_total|floatformat:2 }} грн</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+
+    {% elif entry.type == 'workorder' %}
+    {% with wop=entry.obj %}
+    <div class="card compact-card card-accent-warning">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <strong>
+                    <i class="bi-box-arrow-up-right text-warning me-1"></i>
+                    <a href="{% url 'workorder_detail' wop.work_order.pk %}" class="text-decoration-none">
+                        <code>#{{ wop.work_order.pk }}</code>
+                    </a>
+                </strong>
+                <span class="ms-2 text-muted small">{{ wop.work_order.vehicle }}</span>
+            </div>
+            <div class="text-muted small">
+                <i class="bi-calendar3 me-1"></i>{{ wop.work_order.created_at|date:"d.m.Y H:i" }}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 table-sm">
+                    <thead>
+                        <tr>
+                            <th>Кількість</th>
+                            <th>Ціна за од.</th>
+                            <th class="text-end">Сума</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ wop.quantity|floatformat:2 }}</td>
+                            <td>{{ wop.unit_price|floatformat:2 }} грн</td>
+                            <td class="text-end fw-semibold">{{ wop.total|floatformat:2 }} грн</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <div class="empty-icon mb-3">
+            <i class="bi-arrow-left-right" style="font-size: 3rem;"></i>
+        </div>
+        <h4>Немає руху</h4>
+        <p class="text-muted mb-0">
+            За обраний період немає прихідних накладних або нарядів
+            із цією запчастиною.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

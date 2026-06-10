@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{{ purchase.order_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-cart-plus me-2"></i>Замовлення <code>{{ purchase.order_number }}</code>
+        </h1>
+        <p class="text-muted mb-0">
+            Створено {{ purchase.created_at|date:"d.m.Y H:i" }}
+            {% if purchase.created_by %}
+                &middot; {{ purchase.created_by.user.get_full_name|default:purchase.created_by.user.username }}
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        {% if purchase.is_editable and can_edit %}
+            <a href="{% url 'purchase_update' purchase.pk %}" class="btn btn-outline-secondary">
+                <i class="bi-pencil me-1"></i>Редагувати
+            </a>
+            <a href="{% url 'purchase_submit' purchase.pk %}" class="btn btn-primary">
+                <i class="bi-send me-1"></i>Відправити замовлення
+            </a>
+            <a href="{% url 'purchase_delete' purchase.pk %}" class="btn btn-outline-danger">
+                <i class="bi-trash me-1"></i>Видалити
+            </a>
+        {% endif %}
+        {% if purchase.is_receivable %}
+            <a href="{% url 'purchase_receive' purchase.pk %}" class="btn btn-success">
+                <i class="bi-box-arrow-in-down me-1"></i>Оприбуткувати товар
+            </a>
+        {% endif %}
+        {% if purchase.status == 'ordered' or purchase.status == 'partially_received' %}
+            {% if can_edit %}
+            <a href="{% url 'purchase_cancel' purchase.pk %}" class="btn btn-outline-danger">
+                <i class="bi-x-circle me-1"></i>Скасувати
+            </a>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card card-accent h-100">
+            <div class="card-header">
+                <i class="bi-info-circle"></i> Деталі замовлення
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Постачальник</dt>
+                    <dd class="col-sm-8 fw-medium">{{ purchase.supplier.name }}</dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Статус</dt>
+                    <dd class="col-sm-8">
+                        {% if purchase.status == 'draft' %}
+                            <span class="badge bg-secondary">Чернетка</span>
+                        {% elif purchase.status == 'ordered' %}
+                            <span class="badge bg-primary">Замовлено</span>
+                        {% elif purchase.status == 'partially_received' %}
+                            <span class="badge bg-warning text-dark">Частково отримано</span>
+                        {% elif purchase.status == 'received' %}
+                            <span class="badge bg-success">Отримано</span>
+                        {% elif purchase.status == 'cancelled' %}
+                            <span class="badge bg-danger">Скасовано</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Створив</dt>
+                    <dd class="col-sm-8">{% if purchase.created_by %}{{ purchase.created_by.user.get_full_name|default:purchase.created_by.user.username }}{% else %}—{% endif %}</dd>
+
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Дата</dt>
+                    <dd class="col-sm-8">{{ purchase.created_at|date:"d.m.Y H:i" }}</dd>
+
+                    {% if purchase.notes %}
+                    <dt class="col-sm-4 text-muted small text-uppercase fw-semibold">Нотатки</dt>
+                    <dd class="col-sm-8">{{ purchase.notes|linebreaks }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-accent-green h-100">
+            <div class="card-header">
+                <i class="bi-calculator"></i> Загальна сума
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <div class="text-center">
+                    <div class="display-6 fw-bold mb-1" style="color: var(--accent);">{{ purchase.total_amount|floatformat:2 }} <small class="text-muted fs-6">грн</small></div>
+                    <p class="text-muted mb-0 small">Загальна сума замовлення</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-accent-blue mb-4">
+    <div class="card-header">
+        <i class="bi-list-check"></i> Позиції замовлення
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Запчастина</th>
+                        <th>Артикул</th>
+                        <th>Замовлено</th>
+                        <th>Отримано</th>
+                        <th>Ціна за од.</th>
+                        <th class="text-end">Сума</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td class="fw-semibold">{{ item.part.name }}</td>
+                        <td><code>{{ item.part.part_number|default:"—" }}</code></td>
+                        <td>{{ item.quantity_ordered }} {{ item.part.get_unit_display }}</td>
+                        <td>
+                            {% if item.remaining_to_receive == 0 %}
+                                <span class="badge bg-success">{{ item.quantity_received }}</span>
+                            {% elif item.quantity_received > 0 %}
+                                <span class="badge bg-warning text-dark">{{ item.quantity_received }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.unit_price|floatformat:2 }} грн</td>
+                        <td class="text-end fw-semibold">{{ item.total_price|floatformat:2 }} грн</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="empty-icon"><i class="bi-inbox"></i></div>
+                            <h5>Немає позицій</h5>
+                            <p>У цьому замовленні ще немає позицій.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="text-end">Загалом:</td>
+                        <td class="text-end fw-bold">{{ purchase.total_amount|floatformat:2 }} грн</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'purchase_list' %}" class="btn btn-outline-secondary">
+        <i class="bi-arrow-left me-1"></i>До списку замовлень
+    </a>
+</div>
+{% endblock %}

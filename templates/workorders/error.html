@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Помилка{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <i class="bi-exclamation-triangle-fill me-1"></i> Дія неможлива
+            </div>
+            <div class="card-body text-center py-5">
+                <div class="empty-icon text-danger mb-3">
+                    <i class="bi-exclamation-octagon" style="font-size: 4rem;"></i>
+                </div>
+                <h4 class="mb-3">Помилка</h4>
+                <p class="text-muted mb-4">{{ message }}</p>
+                <a href="{% url 'workorder_list' %}" class="btn btn-secondary">
+                    <i class="bi-arrow-left me-1"></i> Повернутися до списку нарядів
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

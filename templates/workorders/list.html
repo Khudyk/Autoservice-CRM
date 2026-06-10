@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Наряди{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 no-print">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-file-earmark-text me-2"></i>Наряди
+        </h1>
+        <p class="text-muted mb-0 small">Заказ-наряди на роботи</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="bi-printer me-1"></i>Друк
+        </button>
+        <a href="{% url 'workorder_create' %}" class="btn btn-primary">
+            <i class="bi-plus-lg me-1"></i>Новий наряд
+        </a>
+    </div>
+</div>
+
+<!-- Фільтр за датою -->
+<div class="card mb-2 no-print">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="dateFrom" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Дата від
+                </label>
+                <input type="date" id="dateFrom" name="date_from"
+                       class="form-control form-control-sm"
+                       value="{{ filter_from|date:'Y-m-d'|default:'' }}"
+                       {% if filter_to %}max="{{ filter_to|date:'Y-m-d' }}"{% endif %}>
+            </div>
+            <div class="col-auto">
+                <label for="dateTo" class="form-label fw-semibold mb-1">
+                    <i class="bi-calendar-range me-1"></i>Дата до
+                </label>
+                <input type="date" id="dateTo" name="date_to"
+                       class="form-control form-control-sm"
+                       value="{{ filter_to|date:'Y-m-d'|default:'' }}"
+                       {% if filter_from %}min="{{ filter_from|date:'Y-m-d' }}"{% endif %}>
+            </div>
+            <div class="col-auto">
+                <label for="filterStatus" class="form-label fw-semibold mb-1">
+                    <i class="bi-tag me-1"></i>Статус
+                </label>
+                <select id="filterStatus" name="status"
+                        class="form-select form-select-sm">
+                    <option value="">Всі статуси</option>
+                    {% for value, label in valid_statuses %}
+                    <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label for="filterCreatedBy" class="form-label fw-semibold mb-1">
+                    <i class="bi-person me-1"></i>Створив
+                </label>
+                <select id="filterCreatedBy" name="created_by"
+                        class="form-select form-select-sm">
+                    <option value="">Всі працівники</option>
+                    {% for emp in employee_list %}
+                    <option value="{{ emp.pk }}" {% if filter_created_by == emp.pk|stringformat:'s' %}selected{% endif %}>
+                        {{ emp.user.get_full_name|default:emp.user.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label for="searchVin" class="form-label fw-semibold mb-1">
+                    <i class="bi-upc-scan me-1"></i>VIN
+                </label>
+                <input type="text" id="searchVin" name="search_vin"
+                       class="form-control form-control-sm"
+                       placeholder="Пошук за VIN..."
+                       value="{{ search_vin|default:'' }}">
+            </div>
+            <div class="col-auto d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi-funnel me-1"></i>Фільтр
+                </button>
+                {% if filter_from or filter_to or filter_status or filter_created_by or search_vin %}
+                <a href="{% url 'workorder_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi-x-lg"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if filter_from or filter_to or filter_status or filter_created_by or search_vin %}
+<div class="alert alert-info d-flex align-items-center gap-2 py-1 mb-2 no-print" role="alert">
+    <i class="bi-funnel"></i>
+    <span>
+        Показано наряди
+        {% if filter_created_by_name %}{{ filter_created_by_name }}{% endif %}
+        {% if filter_status %}&laquo;{{ filter_status_label }}&raquo;{% endif %}
+        {% if search_vin %}VIN: <strong>{{ search_vin }}</strong>{% endif %}
+        {% if filter_from %}з <strong>{{ filter_from|date:"d.m.Y" }}</strong>{% endif %}
+        {% if filter_from and filter_to %}&nbsp;до&nbsp;{% endif %}
+        {% if filter_to %}по <strong>{{ filter_to|date:"d.m.Y" }}</strong>{% endif %}
+    </span>
+    <span class="ms-auto text-muted small">Знайдено: {{ page_obj.paginator.count }}</span>
+</div>
+{% endif %}
+
+<div class="card card-accent-blue">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Автомобіль</th>
+                        <th>Роботи</th>
+                        <th>Запчастини</th>
+                        <th>Разом</th>
+                        <th>Створив</th>
+                        <th>Статус</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wo in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">
+                            <a href="{% url 'workorder_detail' wo.pk %}" class="text-decoration-none fw-semibold">
+                                #{{ wo.pk }}
+                            </a>
+                        </td>
+                        <td class="text-muted small">{{ wo.created_at|date:"d.m.Y" }}</td>
+                        <td>
+                            {{ wo.vehicle.brand }} {{ wo.vehicle.model }}
+                            <br><small class="text-muted"><code>{{ wo.vehicle.vin_code }}</code></small>
+                        </td>
+                        <td>{{ wo.total_labor_cost|floatformat:2 }} грн</td>
+                        <td>{{ wo.total_parts_cost|floatformat:2 }} грн</td>
+                        <td class="fw-semibold">{{ wo.total_amount|floatformat:2 }} грн</td>
+                        <td>{{ wo.created_by.user.get_full_name|default:wo.created_by.user.username }}</td>
+                        <td>
+                            {% if wo.status == 'draft' %}
+                                <span class="badge bg-secondary">Чернетка</span>
+                            {% elif wo.status == 'in_progress' %}
+                                <span class="badge bg-primary">В роботі</span>
+                            {% elif wo.status == 'completed' %}
+                                <span class="badge bg-success">Завершено</span>
+                            {% elif wo.status == 'awaiting_payment' %}
+                                <span class="badge bg-warning text-dark">Очікує оплати</span>
+                            {% elif wo.status == 'cancelled' %}
+                                <span class="badge bg-danger">Скасовано</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end action-btns">
+                            <a href="{% url 'workorder_detail' wo.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Деталі наряду">
+                                <i class="bi-eye"></i>
+                            </a>
+                            {% if can_edit and wo.is_editable %}
+                            <a href="{% url 'workorder_update' wo.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Редагувати наряд">
+                                <i class="bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-icon"><i class="bi-file-earmark-text"></i></div>
+                            <h5>Ще немає нарядів</h5>
+                            <p>Створіть перший заказ-наряд, щоб почати роботу.</p>
+                            <a href="{% url 'workorder_create' %}" class="btn btn-primary">
+                                <i class="bi-plus-lg me-1"></i>Створити наряд
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
