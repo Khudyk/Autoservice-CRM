@@ -1,21 +1,21 @@
-<#
+﻿<#
 .SYNOPSIS
-    Запускає pytest, і якщо всі тести проходять — створює Git-коміт.
+    Runs pytest, and if all tests pass — creates a Git commit.
 
 .DESCRIPTION
-    Скрипт для автоматизації: тестування → коміт.
-    Виконує pytest, при успіху stage всі зміни та створює коміт.
-    При невдачі показує помилки та переривається.
+    Automation script: test -> commit.
+    Runs pytest, on success stages all changes and creates a commit.
+    On failure shows errors and aborts.
 
 .PARAMETER Message
-    Повідомлення коміту. Якщо не вказано — генерується автоматично.
+    Commit message. If not specified — auto-generated.
 
 .PARAMETER Push
-    Якщо вказано — після коміту виконує git push.
+    If specified — runs git push after commit.
 
 .EXAMPLE
     .\scripts\test-and-commit.ps1
-    .\scripts\test-and-commit.ps1 -Message "Додано quick-create клієнта на сторінку списку"
+    .\scripts\test-and-commit.ps1 -Message "Added quick-create client to list page"
     .\scripts\test-and-commit.ps1 -Push
 #>
 
@@ -29,100 +29,101 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- Конфігурація ----
-$ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$GitExe = "C:\Program Files\Git\bin\git.exe"
+# ---- Configuration ----
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
 $PytestArgs = @('--tb=short', '-q')
 
-# ---- Кольоровий вивід ----
+# ---- Colored output ----
 function Write-Step($Text) {
     Write-Host "`n==> " -NoNewline -ForegroundColor Cyan
     Write-Host $Text -ForegroundColor White
 }
 
 function Write-Success($Text) {
-    Write-Host "  [✓] $Text" -ForegroundColor Green
+    Write-Host "  [v] $Text" -ForegroundColor Green
 }
 
 function Write-Failure($Text) {
-    Write-Host "  [✗] $Text" -ForegroundColor Red
+    Write-Host "  [x] $Text" -ForegroundColor Red
 }
 
 function Write-Info($Text) {
     Write-Host "  [i] $Text" -ForegroundColor DarkYellow
 }
 
-# ---- Перевірка Git ----
-if (-not (Test-Path -LiteralPath $GitExe)) {
-    Write-Failure "Git не знайдено за шляхом: $GitExe"
+# ---- Find Git ----
+$GitExe = ''
+try {
+    $gitCmd = Get-Command git -ErrorAction Stop
+    $GitExe = $gitCmd.Source
+} catch {
+    $fallbackPaths = @(
+        "C:\Program Files\Git\bin\git.exe",
+        "C:\Program Files (x86)\Git\bin\git.exe",
+        "$env:LOCALAPPDATA\Programs\Git\bin\git.exe"
+    )
+    foreach ($fp in $fallbackPaths) {
+        if (Test-Path -LiteralPath $fp) { $GitExe = $fp; break }
+    }
+}
+if (-not $GitExe) {
+    Write-Failure "Git not found. Install Git for Windows: https://git-scm.com"
     exit 1
 }
 
+# ---- Check Git repository ----
 if (-not (Test-Path -LiteralPath "$ProjectRoot\.git")) {
-    Write-Failure "Це не Git-репозиторій. Виконайте 'git init' у корені проєкту."
+    Write-Failure "Not a Git repository. Run 'git init' in project root."
     exit 1
 }
 
-# ---- 1. Запуск тестів ----
-Write-Step "Крок 1: Запуск pytest..."
+# ---- 1. Run tests ----
+Write-Step "Step 1: Running pytest..."
 
 Set-Location -LiteralPath $ProjectRoot
 $pytestOutput = & pytest @PytestArgs 2>&1
 $pytestExitCode = $LASTEXITCODE
 
 if ($pytestExitCode -ne 0) {
-    Write-Failure "Тести НЕ пройдено (код: $pytestExitCode)"
-    Write-Host "`n--- Вивід pytest ---" -ForegroundColor Yellow
+    Write-Failure "Tests FAILED (code: $pytestExitCode)"
+    Write-Host "`n--- pytest output ---" -ForegroundColor Yellow
     $pytestOutput | ForEach-Object { Write-Host $_ }
-    Write-Host "--- Кінець виводу ---`n" -ForegroundColor Yellow
+    Write-Host "--- end of output ---`n" -ForegroundColor Yellow
     exit $pytestExitCode
 }
 
-Write-Success "Усі тести пройдено!"
+Write-Success "All tests passed!"
 
-# ---- 2. Статус Git ----
-Write-Step "Крок 2: Перевірка змін у Git..."
+# ---- 2. Git status ----
+Write-Step "Step 2: Checking Git status..."
 
 $status = & $GitExe -C $ProjectRoot status --porcelain
 if (-not $status) {
-    Write-Info "Немає змін для коміту."
+    Write-Info "No changes to commit."
     exit 0
 }
 
-Write-Info "Знайдено змінені файли:"
+Write-Info "Changed files found:"
 $status -split "`n" | ForEach-Object {
     if ($_.Trim()) { Write-Host "       $_" -ForegroundColor DarkYellow }
 }
 
-# ---- 3. Stage змін ----
-Write-Step "Крок 3: Додавання файлів (git add)..."
+# ---- 3. Stage changes ----
+Write-Step "Step 3: Staging files (git add)..."
 & $GitExe -C $ProjectRoot add -A 2>&1 | Out-Null
-Write-Success "Файли додано в індекс."
+Write-Success "Files staged."
 
-# ---- 4. Коміт ----
-Write-Step "Крок 4: Створення коміту..."
+# ---- 4. Commit ----
+Write-Step "Step 4: Creating commit..."
 
 if (-not $Message) {
-    # Авто-генерація повідомлення: список змінених файлів
+    # Auto-generate message from changed files
     $changedFiles = & $GitExe -C $ProjectRoot diff --cached --name-only 2>&1
     $fileList = $changedFiles -split "`n" | Where-Object { $_ -and $_.Trim() }
-    
-    $summary = @()
-    $fileList | ForEach-Object {
-        $ext = [System.IO.Path]::GetExtension($_)
-        $dir = [System.IO.Path]::GetDirectoryName($_)
-        switch ($ext) {
-            '.py'    { $summary += "py:$dir" }
-            '.html'  { $summary += "html:$dir" }
-            '.js'    { $summary += "js:$dir" }
-            '.css'   { $summary += "css:$dir" }
-            '.ps1'   { $summary += "ps1:$dir" }
-            '.md'    { $summary += "docs:$_" }
-            default  { $summary += "misc:$_" }
-        }
-    }
-    $uniqueSummary = $summary | Sort-Object -Unique
-    $commitMsg = "chore: auto-commit after successful tests`n`nФайли: $($fileList -join ', ')"
+
+    $commitMsg = "chore: auto-commit after successful tests
+
+Files: $($fileList -join ', ')"
 } else {
     $commitMsg = $Message
 }
@@ -130,32 +131,32 @@ if (-not $Message) {
 & $GitExe -C $ProjectRoot commit -m $commitMsg 2>&1 | Out-Null
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Success "Коміт створено!"
-    Write-Info "Повідомлення: $($commitMsg -split "`n" | Select-Object -First 1)"
+    Write-Success "Commit created!"
+    Write-Info "Message: $($commitMsg -split "`n" | Select-Object -First 1)"
 
-    # ---- 5. Push (опціонально) ----
+    # ---- 5. Push (optional) ----
     if ($Push) {
-        Write-Step "Крок 5: Відправка до віддаленого репозиторію (git push)..."
-        
+        Write-Step "Step 5: Pushing to remote (git push)..."
+
         $remoteUrl = & $GitExe -C $ProjectRoot remote get-url origin 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-Failure "Віддалений репозиторій не налаштовано. Додайте його вручну:"
-            Write-Host "       git remote add origin https://github.com/ВАШ_ЛОГІН/НАЗВА_РЕПО.git" -ForegroundColor Yellow
+            Write-Failure "Remote not configured. Add it manually:"
+            Write-Host "       git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git" -ForegroundColor Yellow
             exit 1
         }
 
         & $GitExe -C $ProjectRoot push 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "Зміни відправлено до $remoteUrl"
+            Write-Success "Pushed to $remoteUrl"
         } else {
-            Write-Failure "Помилка push. Можливо, потрібен GitHub Personal Access Token."
+            Write-Failure "Push failed. You may need a GitHub Personal Access Token."
             exit 1
         }
     }
 } else {
-    Write-Failure "Помилка створення коміту."
+    Write-Failure "Commit failed."
     exit 1
 }
 
 Write-Host "`n" -NoNewline
-Write-Success "Готово! Тести → коміт → успіх."
+Write-Success "Done! Tests -> Commit -> Success."
