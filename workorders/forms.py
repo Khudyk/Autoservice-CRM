@@ -17,9 +17,7 @@ from django.db.models import F
 from django.forms import inlineformset_factory
 
 from accounts.models import Employee
-from accounts.utils import is_admin_user as _is_admin_user
 from clients.models import Client
-from company.models import Company
 from parts.models import Part, PartLot
 from vehicles.models import Vehicle
 from workorders.models import WorkOrder, WorkOrderService, WorkOrderPart
@@ -47,33 +45,23 @@ class WorkOrderForm(forms.ModelForm):
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Ініціалізує форму з фільтрацією за компанією.
+        """Ініціалізує форму.
 
         Args:
-            user: Об'єкт користувача (request.user) для ізоляції даних.
+            user: Об'єкт користувача (request.user).
+            company: Компанія для фільтрації випадаючих списків.
         """
         self._user: Any = kwargs.pop('user', None)
+        company: Any = kwargs.pop('company', None)
         super().__init__(*args, **kwargs)
 
-        user = self._user
-        is_admin: bool = (
-            user.is_authenticated and _is_admin_user(user=user)
-            if user else False
-        )
-        company: Company | None = getattr(getattr(user, 'employee', None), 'company', None)
-
-        # Автомобіль — фільтруємо за компанією користувача
-        if is_admin:
-            self.fields['vehicle'].queryset = Vehicle.objects.select_related('company').all()
-        elif company:
+        if company is not None:
             self.fields['vehicle'].queryset = Vehicle.objects.filter(company=company)
+            self.fields['client'].queryset = Client.objects.filter(company=company)
         else:
-            self.fields['vehicle'].queryset = Vehicle.objects.none()
+            self.fields['vehicle'].queryset = Vehicle.objects.select_related('company').all()
+            self.fields['client'].queryset = Client.objects.select_related('company').all()
 
-        # Поле "Клієнт" — всі клієнти без фільтра за компанією,
-        # щоб можна було вибрати будь-кого, не тільки власника авто.
-        # Автозаповнюється з vehicle.client через JS.
-        self.fields['client'].queryset = Client.objects.select_related('company').all()
         self.fields['client'].required = False
         self.fields['client'].empty_label = '— Не вибрано —'
         # При редагуванні: підставляємо збереженого клієнта з наряду
@@ -103,37 +91,23 @@ class WorkOrderServiceForm(forms.ModelForm):
             company: Компанія для фільтрації (опціонально).
         """
         user: Any = kwargs.pop('user', None)
-        company: Company | None = kwargs.pop('company', None)
+        company: Any = kwargs.pop('company', None)
         super().__init__(*args, **kwargs)
 
-        is_admin: bool = (
-            user.is_authenticated and _is_admin_user(user=user)
-            if user else False
-        )
-        if not company and user and hasattr(user, 'employee'):
-            company = getattr(user, 'employee').company
-
-        # Фільтр видів робіт за компанією
-        if is_admin:
-            self.fields['work_type'].queryset = WorkType.objects.all()
-        elif company:
-            self.fields['work_type'].queryset = WorkType.objects.filter(company=company)
+        if company is not None:
+            self.fields['work_type'].queryset = WorkType.objects.filter(
+                company=company,
+            )
+            self.fields['employee'].queryset = (
+                Employee.objects.select_related('user', 'company')
+                .filter(roles__codename='mechanic', company=company)
+            )
         else:
-            self.fields['work_type'].queryset = WorkType.objects.none()
-
-        # Фільтр виконавців: тільки співробітники з роллю 'mechanic' (Майстер)
-        # Бізнес-правило: тільки майстри можуть виконувати роботи
-        if is_admin:
+            self.fields['work_type'].queryset = WorkType.objects.all()
             self.fields['employee'].queryset = (
                 Employee.objects.select_related('user', 'company')
                 .filter(roles__codename='mechanic')
             )
-        elif company:
-            self.fields['employee'].queryset = (
-                Employee.objects.filter(company=company, roles__codename='mechanic')
-            )
-        else:
-            self.fields['employee'].queryset = Employee.objects.none()
 
 
 class WorkOrderPartForm(forms.ModelForm):
@@ -156,43 +130,29 @@ class WorkOrderPartForm(forms.ModelForm):
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Ініціалізує форму з фільтрацією запчастин та партій за компанією.
+        """Ініціалізує форму з фільтрацією запчастин та партій.
 
         Args:
             user: Об'єкт користувача.
             company: Компанія для фільтрації (опціонально).
         """
         user: Any = kwargs.pop('user', None)
-        company: Company | None = kwargs.pop('company', None)
+        company: Any = kwargs.pop('company', None)
         super().__init__(*args, **kwargs)
 
-        is_admin: bool = (
-            user.is_authenticated and _is_admin_user(user=user)
-            if user else False
-        )
-        if not company and user and hasattr(user, 'employee'):
-            company = getattr(user, 'employee').company
-
-        # Фільтрація запчастин
-        if is_admin:
-            self.fields['part'].queryset = Part.objects.all()
-        elif company:
+        if company is not None:
             self.fields['part'].queryset = Part.objects.filter(company=company)
+            lots_qs = PartLot.objects.select_related(
+                'part', 'purchase_item__purchase_order',
+            ).filter(
+                quantity__gt=F('quantity_used'),
+                part__company=company,
+            )
         else:
-            self.fields['part'].queryset = Part.objects.none()
-
-        # Фільтрація партій — тільки з доступним залишком > 0
-        # quantity_available — property, тому фільтруємо через quantity > quantity_used
-        if is_admin:
+            self.fields['part'].queryset = Part.objects.all()
             lots_qs = PartLot.objects.select_related(
                 'part', 'purchase_item__purchase_order',
             ).filter(quantity__gt=F('quantity_used'))
-        elif company:
-            lots_qs = PartLot.objects.select_related(
-                'part', 'purchase_item__purchase_order',
-            ).filter(company=company, quantity__gt=F('quantity_used'))
-        else:
-            lots_qs = PartLot.objects.none()
 
         self.fields['part_lot'].queryset = lots_qs
         self.fields['part_lot'].label = 'Партія закупівлі'

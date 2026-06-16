@@ -8,10 +8,16 @@ from django import forms
 
 from parts.models import Part
 from purchases.models import PurchaseOrder, PurchaseOrderItem, SupplierPayment
+from suppliers.models import Supplier
 
 
 class PurchaseOrderForm(forms.ModelForm):
     """Основна форма замовлення закупівлі."""
+
+    def __init__(self, *args: Any, company: Any = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if company is not None:
+            self.fields['supplier'].queryset = Supplier.objects.filter(company=company)
 
     class Meta:
         model = PurchaseOrder
@@ -34,6 +40,11 @@ class PurchaseOrderForm(forms.ModelForm):
 
 class PurchaseOrderItemForm(forms.ModelForm):
     """Форма позиції замовлення для inline formset."""
+
+    def __init__(self, *args: Any, company: Any = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if company is not None:
+            self.fields['part'].queryset = Part.objects.filter(company=company)
 
     class Meta:
         model = PurchaseOrderItem
@@ -133,14 +144,25 @@ class SupplierPaymentForm(forms.ModelForm):
         self,
         *args,
         supplier_id: int | None = None,
+        company: Any = None,
         **kwargs,
     ) -> None:
         """Ініціалізує форму з фільтрацією замовлень за постачальником.
 
         Args:
             supplier_id: ID постачальника для фільтрації списку замовлень.
+            company: Компанія для фільтрації списків постачальників та замовлень.
         """
         super().__init__(*args, **kwargs)
+        if company is not None:
+            self.fields['supplier'].queryset = Supplier.objects.filter(
+                company=company,
+            )
+            self.fields['purchase_order'].queryset = (
+                self.fields['purchase_order'].queryset.filter(
+                    company=company,
+                )
+            )
         if supplier_id:
             self.fields['purchase_order'].queryset = (
                 self.fields['purchase_order'].queryset.filter(

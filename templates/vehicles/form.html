@@ -169,19 +169,18 @@
     var spinner = document.getElementById('clientQuickSpinner');
     var errorsDiv = document.getElementById('clientQuickErrors');
 
-    function getCookie(name) {
-        var cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            var cookies = document.cookie.split(';');
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+    function getCSRFToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) {
+            return meta.getAttribute('content');
         }
-        return cookieValue;
+        return '';
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
     }
 
     // Фільтр телефону — лише цифри
@@ -214,7 +213,7 @@
 
         fetch('{% url "client_quick_create" %}', {
             method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            headers: { 'X-CSRFToken': getCSRFToken() },
             body: formData,
         })
         .then(function(response) { return response.json(); })
@@ -241,7 +240,7 @@
                             var msgs = Array.isArray(data.errors[field])
                                 ? data.errors[field] : [data.errors[field]];
                             msgs.forEach(function(msg) {
-                                errorHtml += '<div>' + msg + '</div>';
+                                errorHtml += '<div>' + escapeHtml(msg) + '</div>';
                             });
                         }
                     }
@@ -254,7 +253,7 @@
             }
         })
         .catch(function(err) {
-            errorsDiv.innerHTML = '<div>Помилка з\'єднання: ' + err.message + '</div>';
+            errorsDiv.innerHTML = '<div>Помилка з\'єднання: ' + escapeHtml(err.message) + '</div>';
             errorsDiv.classList.remove('d-none');
             submitBtn.disabled = false;
             spinner.classList.add('d-none');

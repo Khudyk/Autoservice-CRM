@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load perm_extras %}
+{% block title %}Права доступу{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="bi-shield-lock me-2"></i>Права доступу
+        </h1>
+        <p class="text-muted mb-0 small">Налаштуйте індивідуальні права для кожного співробітника</p>
+    </div>
+</div>
+
+<form method="get" class="row g-3 mb-4">
+    <div class="col-auto" style="min-width:300px;">
+        <label class="form-label fw-semibold" for="employeeSelect">
+            <i class="bi-person me-1"></i>Співробітник
+        </label>
+        <select name="employee" id="employeeSelect" class="form-select"
+                onchange="this.form.submit()">
+            <option value="">— Оберіть співробітника —</option>
+            {% for emp in employees %}
+            <option value="{{ emp.pk }}"
+                    {% if selected_employee and selected_employee.pk == emp.pk %}selected{% endif %}>
+                {{ emp.user.get_full_name|default:emp.user.username }}
+                {% if emp.company %}— {{ emp.company.name }}{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+{% if selected_employee %}
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="employee" value="{{ selected_employee.pk }}">
+
+    <div class="card card-accent">
+        <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi-person-badge"></i>
+            <span class="fw-semibold">{{ selected_employee.user.get_full_name|default:selected_employee.user.username }}</span>
+            {% if selected_employee.company %}
+            <small class="text-muted">— {{ selected_employee.company.name }}</small>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th style="min-width:130px;">Модуль</th>
+                            <th class="text-center">Читання</th>
+                            <th class="text-center">Створення</th>
+                            <th class="text-center">Редагування</th>
+                            <th class="text-center">Видалення</th>
+                            <th class="text-center" style="width:80px;">
+                                <button type="button" class="btn btn-sm btn-outline-success"
+                                        id="selectAllModules" title="Відмітити всі">
+                                    <i class="bi-check-all"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        id="deselectAllModules" title="Зняти всі">
+                                    <i class="bi-x"></i>
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for module in modules %}
+                        {% with module_actions=current_perms|dict_key:module.pk %}
+                        <tr>
+                            <td class="fw-semibold">
+                                <span class="small">{{ module.name }}</span>
+                            </td>
+                            {% for action_key, action_label, action_short in actions %}
+                            <td class="text-center">
+                                <div class="form-check form-switch d-inline-block mb-0">
+                                    <input class="form-check-input perm-checkbox" type="checkbox" role="switch"
+                                           name="perm_{{ module.pk }}_{{ action_key }}"
+                                           id="perm_{{ module.pk }}_{{ action_key }}"
+                                           data-action="{{ action_key }}"
+                                           {% if action_key in module_actions %}checked{% endif %}>
+                                    <label class="form-check-label d-none"
+                                           for="perm_{{ module.pk }}_{{ action_key }}">
+                                        {{ action_label }}
+                                    </label>
+                                </div>
+                            </td>
+                            {% endfor %}
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-success btn-sm select-module"
+                                            title="Усі дії">
+                                        <i class="bi-check-all"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm deselect-module"
+                                            title="Жодної дії">
+                                        <i class="bi-x"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-success btn-lg px-4">
+            <i class="bi-check-lg me-1"></i>Зберегти
+        </button>
+        <a href="{% url 'permission_matrix' %}" class="btn btn-outline-secondary btn-lg px-4">
+            <i class="bi-x-lg me-1"></i>Скасувати
+        </a>
+    </div>
+</form>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi-person-plus" style="font-size:3rem;"></i>
+    <p class="mt-3">Оберіть співробітника зі списку, щоб налаштувати його права доступу.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select / deselect all checkboxes in a row
+    document.querySelectorAll('.select-module').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var row = this.closest('tr');
+            row.querySelectorAll('.perm-checkbox').forEach(function(cb) {
+                cb.checked = true;
+            });
+        });
+    });
+    document.querySelectorAll('.deselect-module').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var row = this.closest('tr');
+            row.querySelectorAll('.perm-checkbox').forEach(function(cb) {
+                cb.checked = false;
+            });
+        });
+    });
+
+    // Select / deselect all modules
+    if (document.getElementById('selectAllModules')) {
+        document.getElementById('selectAllModules').addEventListener('click', function() {
+            document.querySelectorAll('.perm-checkbox').forEach(function(cb) {
+                cb.checked = true;
+            });
+        });
+        document.getElementById('deselectAllModules').addEventListener('click', function() {
+            document.querySelectorAll('.perm-checkbox').forEach(function(cb) {
+                cb.checked = false;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

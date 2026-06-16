@@ -1,12 +1,10 @@
-"""Представлення (views) для постачальників з ізоляцією даних."""
+"""Представлення (views) для постачальників."""
 
 from __future__ import annotations
 
 from datetime import date
 from typing import Any
 
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
@@ -14,71 +12,58 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.utils import (
     filter_queryset_by_company,
+    get_object_or_404_for_company,
     get_user_company,
-    has_catalog_edit_permission,
-    has_purchase_permission,
-    is_admin_user,
     paginate_queryset,
-    prepare_list_context,
 )
-from company.models import Company
 from purchases.models import PurchaseOrder, PurchaseOrderItem, SupplierPayment
 from suppliers.forms import SupplierForm
 from suppliers.models import Supplier
 
+from permissions.utils import permission_required
 
-@login_required
+
+@permission_required('suppliers', 'read')
 def supplier_list(request: HttpRequest) -> HttpResponse:
-    """Відображає список постачальників з ізоляцією за компанією.
+    """Відображає список постачальників."""
+    from accounts.utils import is_admin_user
 
-    - Адміністратори бачать усіх постачальників (з фільтром за компанією).
-    - Звичайні користувачі — тільки постачальників своєї компанії.
-    """
     qs = Supplier.objects.select_related('company')
-    qs, companies, selected_company = prepare_list_context(request, qs)
+    if is_admin_user(request=request):
+        # Адміністратори можуть фільтрувати за компанією через ?company=<pk>
+        company_id: str | None = request.GET.get('company')
+        if company_id:
+            try:
+                qs = qs.filter(company_id=int(company_id))
+            except (ValueError, TypeError):
+                pass
+    else:
+        qs = filter_queryset_by_company(request, qs)
     page_obj = paginate_queryset(request, qs)
-    can_edit: bool = has_catalog_edit_permission(request=request)
     return render(request, 'suppliers/list.html', {
         'page_obj': page_obj,
-        'companies': companies,
-        'selected_company': selected_company,
-        'can_edit': can_edit,
     })
 
 
-@login_required
 @transaction.atomic
+@permission_required('suppliers', 'create')
 def supplier_create(request: HttpRequest) -> HttpResponse:
-    """Створює нового постачальника.
-
-    - Адміністратори можуть вибрати будь-яку компанію.
-    - Звичайні користувачі, які мають право редагувати довідники,
-      створюють постачальника тільки у своїй компанії.
-
-    Raises:
-        PermissionDenied: Якщо користувач не має права редагувати
-            довідники (тільки директори та адміністратори).
-    """
-    if not has_catalog_edit_permission(request=request):
-        raise PermissionDenied(
-            'Створювати постачальників можуть лише директори та адміністратори.',
-        )
+    """Створює нового постачальника."""
+    from accounts.utils import is_admin_user
 
     if request.method == 'POST':
         form = SupplierForm(request.POST)
     else:
         form = SupplierForm()
 
-    if not is_admin_user(request=request):
-        user_company: Company | None = get_user_company(request=request)
-        if user_company:
-            form.fields['company'].queryset = Company.objects.filter(
-                pk=user_company.pk,
-            )
-            form.fields['company'].initial = user_company.pk
-            form.fields['company'].disabled = True
-
     if form.is_valid():
+        if is_admin_user(request=request) and form.cleaned_data.get('company'):
+            # Адміністратори можуть створювати в будь-якій компанії
+            form.instance.company = form.cleaned_data['company']
+        else:
+            company = get_user_company(request)
+            if company:
+                form.instance.company = company
         supplier: Supplier = form.save()
         return redirect('supplier_list')
 
@@ -89,36 +74,19 @@ def supplier_create(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 @transaction.atomic
+@permission_required('suppliers', 'edit')
 def supplier_update(request: HttpRequest, pk: int) -> HttpResponse:
     """Редагує постачальника.
 
     Args:
         pk: Первинний ключ постачальника.
-
-    Raises:
-        PermissionDenied: Якщо користувач не має права редагувати
-            довідники (тільки директори та адміністратори).
-
-    Якщо постачальник не належить до компанії користувача — 404.
     """
-    if not has_catalog_edit_permission(request=request):
-        raise PermissionDenied(
-            'Редагувати постачальників можуть лише директори та адміністратори.',
-        )
-
-    supplier: Supplier = get_object_or_404(
-        filter_queryset_by_company(request, Supplier.objects.all()),
-        pk=pk,
-    )
+    supplier: Supplier = get_object_or_404_for_company(request, Supplier, pk=pk)
     if request.method == 'POST':
         form = SupplierForm(request.POST, instance=supplier)
     else:
         form = SupplierForm(instance=supplier)
-
-    if not is_admin_user(request=request):
-        form.fields['company'].disabled = True
 
     if form.is_valid():
         form.save()
@@ -131,27 +99,15 @@ def supplier_update(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-@login_required
 @transaction.atomic
+@permission_required('suppliers', 'delete')
 def supplier_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    """Видаляє постачальника з перевіркою доступу до компанії.
+    """Видаляє постачальника.
 
     Args:
         pk: Первинний ключ постачальника.
-
-    Raises:
-        PermissionDenied: Якщо користувач не має права видаляти
-            довідники (тільки директори та адміністратори).
     """
-    if not has_catalog_edit_permission(request=request):
-        raise PermissionDenied(
-            'Видаляти постачальників можуть лише директори та адміністратори.',
-        )
-
-    supplier: Supplier = get_object_or_404(
-        filter_queryset_by_company(request, Supplier.objects.all()),
-        pk=pk,
-    )
+    supplier: Supplier = get_object_or_404_for_company(request, Supplier, pk=pk)
     if request.method == 'POST':
         supplier.delete()
         return redirect('supplier_list')
@@ -162,7 +118,7 @@ def supplier_delete(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-@login_required
+@permission_required('suppliers', 'read')
 def supplier_purchases(request: HttpRequest, pk: int) -> HttpResponse:
     """Відображає закупівлі та оплати постачальника в єдиному хронологічному списку.
 
@@ -171,26 +127,13 @@ def supplier_purchases(request: HttpRequest, pk: int) -> HttpResponse:
     закупівель, payment_date для оплат). Кожен тип запису має власний шаблон
     відображення: закупівлі — картка з таблицею позицій, оплати — картка
     з платіжними реквізитами.
-    Доступ до перегляду регулюється через has_purchase_permission.
     Підтримує фільтрацію за діапазоном дат (?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD).
     Фільтр застосовується одночасно до закупівель (created_at) і до оплат (payment_date).
 
     Args:
         pk: Первинний ключ постачальника.
-
-    Raises:
-        PermissionDenied: Якщо користувач не має права перегляду закупівель.
     """
-    if not has_purchase_permission(request=request):
-        raise PermissionDenied(
-            'Перегляд закупівель доступний лише директорам, адміністраторам, '
-            'менеджерам, закупівельникам та складовщикам.',
-        )
-
-    supplier: Supplier = get_object_or_404(
-        filter_queryset_by_company(request, Supplier.objects.all()),
-        pk=pk,
-    )
+    supplier: Supplier = get_object_or_404_for_company(request, Supplier, pk=pk)
 
     # Фільтрація за датою
     date_from: str | None = request.GET.get('date_from')
@@ -198,7 +141,9 @@ def supplier_purchases(request: HttpRequest, pk: int) -> HttpResponse:
     filter_from: date | None = None
     filter_to: date | None = None
 
-    qs = PurchaseOrder.objects.filter(supplier=supplier)
+    qs = filter_queryset_by_company(
+        request, PurchaseOrder.objects.filter(supplier=supplier),
+    )
 
     if date_from:
         try:
@@ -227,7 +172,9 @@ def supplier_purchases(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
     # Отримуємо оплати постачальника
-    payments_qs = SupplierPayment.objects.filter(supplier=supplier)
+    payments_qs = filter_queryset_by_company(
+        request, SupplierPayment.objects.filter(supplier=supplier),
+    )
 
     if filter_from:
         payments_qs = payments_qs.filter(payment_date__gte=filter_from)

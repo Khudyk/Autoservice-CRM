@@ -6,8 +6,34 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
+from accounts.models import Employee
 from company.models import Company
+from permissions.models import EmployeePermission, Module
 from suppliers.models import Supplier
+
+
+def _grant_supplier_permissions(
+    employee: Employee,
+    can_read: bool = False,
+    can_create: bool = False,
+    can_edit: bool = False,
+    can_delete: bool = False,
+) -> None:
+    """Надає співробітнику права на модуль suppliers."""
+    module, _ = Module.objects.get_or_create(
+        codename='suppliers',
+        defaults={'name': 'Постачальники'},
+    )
+    EmployeePermission.objects.update_or_create(
+        employee=employee,
+        module=module,
+        defaults={
+            'can_read': can_read,
+            'can_create': can_create,
+            'can_edit': can_edit,
+            'can_delete': can_delete,
+        },
+    )
 
 
 @pytest.fixture
@@ -15,6 +41,7 @@ def regular_client(client: Client, employee) -> Client:
     """Клієнт, залогінений як звичайний співробітник (без is_staff)."""
     employee.user.is_staff = False
     employee.user.save()
+    _grant_supplier_permissions(employee, can_read=True)
     client.login(username=employee.user.username, password='testpass123')
     return client
 
@@ -34,6 +61,9 @@ def admin_client(client: Client, admin_employee) -> Client:
     """Клієнт, залогінений як співробітник з роллю 'Адміністратор'."""
     admin_employee.user.is_staff = False
     admin_employee.user.save()
+    _grant_supplier_permissions(
+        admin_employee, can_read=True, can_create=True, can_edit=True, can_delete=True,
+    )
     client.login(username=admin_employee.user.username, password='testpass123')
     return client
 

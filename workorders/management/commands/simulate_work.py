@@ -37,17 +37,17 @@ from worktypes.models import WorkType
 # ======================================================================
 
 EMPLOYEES_DATA: list[dict[str, Any]] = [
-    {'username': 'admin', 'first_name': 'Тетяна', 'last_name': 'Коваль', 'roles': ['admin'], 'phone': '+380671112200', 'parts_sale_percent': 0, 'labor_percent': 0},
-    {'username': 'director', 'first_name': 'Олександр', 'last_name': 'Мельник', 'roles': ['director'], 'phone': '+380671112201', 'parts_sale_percent': 2, 'labor_percent': 5},
-    {'username': 'manager', 'first_name': 'Наталія', 'last_name': 'Шевченко', 'roles': ['manager'], 'phone': '+380671112202', 'parts_sale_percent': 1.5, 'labor_percent': 3},
-    {'username': 'mechanic1', 'first_name': 'Іван', 'last_name': 'Петренко', 'roles': ['mechanic'], 'phone': '+380671112203', 'parts_sale_percent': 0.5, 'labor_percent': 40},
-    {'username': 'mechanic2', 'first_name': 'Олег', 'last_name': 'Ковальчук', 'roles': ['mechanic'], 'phone': '+380671112204', 'parts_sale_percent': 0.5, 'labor_percent': 35},
-    {'username': 'mechanic3', 'first_name': 'Михайло', 'last_name': 'Бондаренко', 'roles': ['mechanic'], 'phone': '+380671112205', 'parts_sale_percent': 0.5, 'labor_percent': 38},
-    {'username': 'mechanic4', 'first_name': 'Андрій', 'last_name': 'Кравченко', 'roles': ['mechanic'], 'phone': '+380671112206', 'parts_sale_percent': 0.5, 'labor_percent': 32},
-    {'username': 'mechanic5', 'first_name': 'Сергій', 'last_name': 'Олійник', 'roles': ['mechanic'], 'phone': '+380671112207', 'parts_sale_percent': 0.5, 'labor_percent': 36},
-    {'username': 'accountant', 'first_name': 'Олена', 'last_name': 'Савченко', 'roles': ['accountant'], 'phone': '+380671112208', 'parts_sale_percent': 0, 'labor_percent': 0},
-    {'username': 'storekeeper', 'first_name': 'Дмитро', 'last_name': 'Ткаченко', 'roles': ['storekeeper'], 'phone': '+380671112209', 'parts_sale_percent': 0, 'labor_percent': 0},
-    {'username': 'purchaser', 'first_name': 'Віталій', 'last_name': 'Грищенко', 'roles': ['purchaser'], 'phone': '+380671112210', 'parts_sale_percent': 0, 'labor_percent': 0},
+    {'username': 'admin', 'first_name': 'Тетяна', 'last_name': 'Коваль', 'roles': ['admin'], 'phone': '+380671112200'},
+    {'username': 'director', 'first_name': 'Олександр', 'last_name': 'Мельник', 'roles': ['director'], 'phone': '+380671112201'},
+    {'username': 'manager', 'first_name': 'Наталія', 'last_name': 'Шевченко', 'roles': ['manager'], 'phone': '+380671112202'},
+    {'username': 'mechanic1', 'first_name': 'Іван', 'last_name': 'Петренко', 'roles': ['mechanic'], 'phone': '+380671112203'},
+    {'username': 'mechanic2', 'first_name': 'Олег', 'last_name': 'Ковальчук', 'roles': ['mechanic'], 'phone': '+380671112204'},
+    {'username': 'mechanic3', 'first_name': 'Михайло', 'last_name': 'Бондаренко', 'roles': ['mechanic'], 'phone': '+380671112205'},
+    {'username': 'mechanic4', 'first_name': 'Андрій', 'last_name': 'Кравченко', 'roles': ['mechanic'], 'phone': '+380671112206'},
+    {'username': 'mechanic5', 'first_name': 'Сергій', 'last_name': 'Олійник', 'roles': ['mechanic'], 'phone': '+380671112207'},
+    {'username': 'accountant', 'first_name': 'Олена', 'last_name': 'Савченко', 'roles': ['accountant'], 'phone': '+380671112208'},
+    {'username': 'storekeeper', 'first_name': 'Дмитро', 'last_name': 'Ткаченко', 'roles': ['storekeeper'], 'phone': '+380671112209'},
+    {'username': 'purchaser', 'first_name': 'Віталій', 'last_name': 'Грищенко', 'roles': ['purchaser'], 'phone': '+380671112210'},
 ]
 
 CLIENTS_DATA: list[dict[str, str]] = [
@@ -277,27 +277,19 @@ class Command(BaseCommand):
 
     def _clean_data(self) -> None:
         """Очищує всі дані імітації, крім Company, Role та WorkType."""
-        from django.db import connection
-        tables = [
-            'workorders_workorderpart',
-            'workorders_workorderservice',
-            'workorders_workorder',
-            'parts_partlot',
-            'purchases_supplierpayment',
-            'purchases_purchaseorderitem',
-            'purchases_purchaseorder',
-            'vehicles_vehicle',
-            'clients_client',
-            'suppliers_supplier',
-            'parts_part',
-            'accounts_employee',
-        ]
-        for table in tables:
-            with connection.cursor() as cursor:
-                try:
-                    cursor.execute(f'DELETE FROM "{table}"')
-                except Exception:
-                    pass  # таблиці може не бути
+        # Видаляємо в зворотному порядку залежностей
+        WorkOrderPart.objects.all().delete()
+        WorkOrderService.objects.all().delete()
+        WorkOrder.objects.all().delete()
+        PartLot.objects.all().delete()
+        SupplierPayment.objects.all().delete()
+        PurchaseOrderItem.objects.all().delete()
+        PurchaseOrder.objects.all().delete()
+        Vehicle.objects.all().delete()
+        Client.objects.all().delete()
+        Supplier.objects.all().delete()
+        Part.objects.all().delete()
+        Employee.objects.all().delete()
 
         # Видалити створених користувачів (крім суперюзера)
         User.objects.filter(
@@ -330,8 +322,6 @@ class Command(BaseCommand):
                 company=company,
                 defaults={
                     'phone': emp_data['phone'],
-                    'parts_sale_percent': emp_data['parts_sale_percent'],
-                    'labor_percent': emp_data['labor_percent'],
                     'is_active': True,
                 },
             )

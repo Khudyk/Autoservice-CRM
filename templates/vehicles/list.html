@@ -14,9 +14,12 @@
         {% endif %}
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'vehicle_create' %}" class="btn btn-primary">
-            <i class="bi-plus-lg me-1"></i>Новий автомобіль
-        </a>
+        {% if can_edit %}
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#vehicleQuickModal"
+                title="Швидко додати автомобіль">
+            <i class="bi-lightning me-1"></i>Швидко додати
+        </button>
+        {% endif %}
     </div>
 </div>
 
@@ -128,9 +131,9 @@
                             <div class="empty-icon"><i class="bi-car-front"></i></div>
                             <h5>Немає автомобілів</h5>
                             <p>Додайте перший автомобіль до бази даних.</p>
-                            <a href="{% url 'vehicle_create' %}" class="btn btn-primary btn-sm">
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#vehicleQuickModal">
                                 <i class="bi-plus-lg me-1"></i>Додати автомобіль
-                            </a>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -139,4 +142,165 @@
         </div>
     </div>
 </div>
+
+{% if can_edit %}
+<!-- ============================================================ -->
+<!-- МОДАЛЬНЕ ВІКНО: Швидке створення автомобіля                  -->
+<!-- ============================================================ -->
+<div class="modal fade" id="vehicleQuickModal" tabindex="-1"
+     aria-labelledby="vehicleQuickModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="vehicleQuickModalLabel">
+                    <i class="bi-car-front me-2"></i>Новий автомобіль
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <form id="vehicleQuickForm">
+                <div class="modal-body">
+                    <div class="modal-feedback alert alert-danger d-none" id="vehicleQuickErrors"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="vq_vin_code" class="form-label">VIN-код <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vq_vin_code" name="vin_code"
+                                   maxlength="17" placeholder="17 символів VIN-коду" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="vq_brand" class="form-label">Марка <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vq_brand" name="brand"
+                                   placeholder="Напр. Toyota" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_model" class="form-label">Модель <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vq_model" name="model"
+                                   placeholder="Напр. Camry" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_year" class="form-label">Рік випуску <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="vq_year" name="year"
+                                   min="1900" max="2027" placeholder="2024" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_engine_type" class="form-label">Тип двигуна</label>
+                            <select class="form-select" id="vq_engine_type" name="engine_type">
+                                <option value="petrol">Бензин</option>
+                                <option value="diesel">Дизель</option>
+                                <option value="electric">Електрика</option>
+                                <option value="hybrid">Гібрид</option>
+                                <option value="gas">Газ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="vq_engine_displacement" class="form-label">Об'єм двигуна, л</label>
+                            <input type="number" class="form-control" id="vq_engine_displacement"
+                                   name="engine_displacement" step="0.1" placeholder="2.0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary" id="vehicleQuickSubmit">
+                        <span class="spinner-border spinner-border-sm d-none" id="vehicleQuickSpinner" role="status"></span>
+                        <i class="bi-check-lg me-1"></i>Створити
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    var modalEl = document.getElementById('vehicleQuickModal');
+    if (!modalEl) return;
+
+    var form = document.getElementById('vehicleQuickForm');
+    var submitBtn = document.getElementById('vehicleQuickSubmit');
+    var spinner = document.getElementById('vehicleQuickSpinner');
+    var errorsDiv = document.getElementById('vehicleQuickErrors');
+
+    function getCSRFToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) {
+            return meta.getAttribute('content');
+        }
+        return '';
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    // Скидання при закритті
+    modalEl.addEventListener('hidden.bs.modal', function() {
+        form.reset();
+        errorsDiv.classList.add('d-none');
+        errorsDiv.innerHTML = '';
+        submitBtn.disabled = false;
+        spinner.classList.add('d-none');
+    });
+
+    // Сабміт
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        var formData = new FormData(form);
+        submitBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        errorsDiv.classList.add('d-none');
+        errorsDiv.innerHTML = '';
+
+        fetch('{% url "vehicle_quick_create" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCSRFToken() },
+            body: formData,
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                // Toast + reload
+                var toast = document.createElement('div');
+                toast.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-4';
+                toast.style.zIndex = '9999';
+                toast.innerHTML = '<i class="bi-check-circle me-2"></i>Автомобіль створено!'
+                    + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                document.body.appendChild(toast);
+                setTimeout(function() { location.reload(); }, 600);
+            } else {
+                var errorHtml = '';
+                if (data.errors) {
+                    for (var field in data.errors) {
+                        if (data.errors.hasOwnProperty(field)) {
+                            var msgs = Array.isArray(data.errors[field])
+                                ? data.errors[field] : [data.errors[field]];
+                            msgs.forEach(function(msg) { errorHtml += '<div>' + escapeHtml(msg) + '</div>'; });
+                        }
+                    }
+                }
+                if (!errorHtml) errorHtml = '<div>Невідома помилка</div>';
+                errorsDiv.innerHTML = errorHtml;
+                errorsDiv.classList.remove('d-none');
+                submitBtn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        })
+        .catch(function(err) {
+            errorsDiv.innerHTML = '<div>Помилка з\'єднання: ' + escapeHtml(err.message) + '</div>';
+            errorsDiv.classList.remove('d-none');
+            submitBtn.disabled = false;
+            spinner.classList.add('d-none');
+        });
+    });
+})();
+</script>
+{% endblock %}
+{% endif %}
 {% endblock %}

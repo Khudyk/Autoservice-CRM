@@ -52,6 +52,7 @@
                     <tr>
                         <th>Назва</th>
                         <th>Категорія</th>
+                        <th class="text-end">Вартість, грн</th>
                         <th>Статус</th>
                         <th class="text-end">Дії</th>
                     </tr>
@@ -73,6 +74,13 @@
                                 <span class="badge bg-danger">Електрика</span>
                             {% else %}
                                 <span class="badge bg-secondary">Інше</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold text-nowrap">
+                            {% if worktype.default_price > 0 %}
+                                {{ worktype.default_price|floatformat:2 }}
+                            {% else %}
+                                <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td>
@@ -97,7 +105,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="empty-state">
+                        <td colspan="5" class="empty-state">
                             <div class="empty-icon"><i class="bi-tools"></i></div>
                             <h5>Немає видів робіт</h5>
                             <p>Додайте перший вид робіт, щоб почати роботу.</p>

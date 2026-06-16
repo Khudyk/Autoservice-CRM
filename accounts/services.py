@@ -64,8 +64,6 @@ class EmployeeService:
         company: Company,
         role: str = Employee.RoleChoices.MECHANIC,
         phone: str = '',
-        parts_sale_percent: float | str | None = None,
-        labor_percent: float | str | None = None,
     ) -> Employee:
         """Створює співробітника в межах однієї транзакції.
 
@@ -74,8 +72,6 @@ class EmployeeService:
             company: Компанія, до якої прикріплюється співробітник.
             role: Код ролі (за замовчуванням — майстер).
             phone: Номер телефону (необов'язково).
-            parts_sale_percent: Відсоток від продажу запчастин (0.00–100.00).
-            labor_percent: Відсоток від вартості робіт (0.00–100.00).
 
         Returns:
             Створений екземпляр Employee.
@@ -88,8 +84,6 @@ class EmployeeService:
             user=user,
             company=company,
             phone=phone,
-            parts_sale_percent=parts_sale_percent or 0,
-            labor_percent=labor_percent or 0,
         )
         try:
             role_obj: Role = Role.objects.get(codename=role)
@@ -105,8 +99,6 @@ class EmployeeService:
         role: str | None = None,
         phone: str | None = None,
         is_active: bool | None = None,
-        parts_sale_percent: float | str | None = None,
-        labor_percent: float | str | None = None,
     ) -> Employee:
         """Оновлює дані співробітника атомарно.
 
@@ -115,8 +107,6 @@ class EmployeeService:
             role: Код нової ролі (якщо None — залишаються поточні ролі).
             phone: Новий телефон (якщо None — залишається поточний).
             is_active: Новий статус (якщо None — залишається поточний).
-            parts_sale_percent: Відсоток від продажу запчастин (якщо None — без змін).
-            labor_percent: Відсоток від вартості робіт (якщо None — без змін).
 
         Returns:
             Оновлений екземпляр Employee.
@@ -131,10 +121,6 @@ class EmployeeService:
             employee.phone = phone
         if is_active is not None:
             employee.is_active = is_active
-        if parts_sale_percent is not None:
-            employee.parts_sale_percent = parts_sale_percent
-        if labor_percent is not None:
-            employee.labor_percent = labor_percent
         employee.save()
         return employee
 

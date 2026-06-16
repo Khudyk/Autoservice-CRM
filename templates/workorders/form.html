@@ -537,7 +537,7 @@
         fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': getCSRFToken(),
             },
             body: formData,
         })
@@ -568,7 +568,7 @@
                                 ? data.errors[field]
                                 : [data.errors[field]];
                             msgs.forEach(function(msg) {
-                                errorHtml += '<div>' + msg + '</div>';
+                                errorHtml += '<div>' + escapeHtml(msg) + '</div>';
                             });
                         }
                     }
@@ -579,7 +579,7 @@
             }
         })
         .catch(function(err) {
-            errorsDiv.innerHTML = '<div>Помилка з\'єднання з сервером: ' + err.message + '</div>';
+            errorsDiv.innerHTML = '<div>Помилка з\'єднання з сервером: ' + escapeHtml(err.message) + '</div>';
             errorsDiv.classList.remove('d-none');
         })
         .finally(function() {
@@ -588,20 +588,20 @@
         });
     }
 
-    // Отримання CSRF-токена з cookies
-    function getCookie(name) {
-        var cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            var cookies = document.cookie.split(';');
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+    // Отримання CSRF-токена з meta-тега (працює навіть при CSRF_COOKIE_HTTPONLY=True)
+    function getCSRFToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) {
+            return meta.getAttribute('content');
         }
-        return cookieValue;
+        return '';
+    }
+
+    // Екранування HTML-спецсимволів (захист від XSS)
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
     }
 
     // ================================================================

@@ -81,45 +81,4 @@ class TestEmployeeModel:
         """Перевіряє рядкове представлення з різними компаніями - це вже прокоментовано."""
         assert employee.company.name in str(employee)
 
-    def test_employee_default_percentages_are_zero(
-        self,
-        another_user: User,
-        company: Company,
-    ) -> None:
-        """Перевіряє, що відсотки за замовчуванням дорівнюють 0.00."""
-        emp: Employee = Employee.objects.create(
-            user=another_user,
-            company=company,
-        )
-        assert emp.parts_sale_percent == 0.00
-        assert emp.labor_percent == 0.00
 
-    def test_employee_custom_percentages(
-        self,
-        user: User,
-        company: Company,
-    ) -> None:
-        """Перевіряє встановлення користувацьких відсотків."""
-        emp: Employee = Employee.objects.create(
-            user=user,
-            company=company,
-            parts_sale_percent=10.50,
-            labor_percent=25.00,
-        )
-        assert emp.parts_sale_percent == 10.50
-        assert emp.labor_percent == 25.00
-
-    def test_employee_percentages_max_values(
-        self,
-        another_user: User,
-        company: Company,
-    ) -> None:
-        """Перевіряє встановлення максимальних значень відсотків (100%)."""
-        emp: Employee = Employee.objects.create(
-            user=another_user,
-            company=company,
-            parts_sale_percent=100.00,
-            labor_percent=100.00,
-        )
-        assert emp.parts_sale_percent == 100.00
-        assert emp.labor_percent == 100.00

@@ -2,15 +2,13 @@
 
 Містить:
 - Role — довідник ролей для розмежування прав доступу.
-- Employee — співробітник з прив'язкою до компанії, ролями та
-  відсотками нарахувань за роботи та запчастини.
+- Employee — співробітник з прив'язкою до компанії та набором ролей.
 """
 
 from __future__ import annotations
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -81,24 +79,6 @@ class Employee(models.Model):
     )
     phone = models.CharField('Телефон', max_length=20, blank=True)
     is_active = models.BooleanField('Активний', default=True)
-    parts_sale_percent = models.DecimalField(
-        'Відсоток від продажу запчастин',
-        max_digits=5,
-        decimal_places=2,
-        default=0.00,
-        blank=True,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text='Відсоток від вартості проданих запчастин, який нараховується співробітнику',
-    )
-    labor_percent = models.DecimalField(
-        'Відсоток від робіт',
-        max_digits=5,
-        decimal_places=2,
-        default=0.00,
-        blank=True,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text='Відсоток від вартості виконаних робіт, який нараховується співробітнику',
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

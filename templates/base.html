@@ -13,6 +13,7 @@
     {# --- Google Fonts: Inter (підключено через CSS) --- #}
     {# --- Кастомні стилі --- #}
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -36,19 +37,48 @@
 
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    {% if user.is_authenticated %}
                     {% for item in nav_main %}
+                    {% if item.children %}
+                    {# Випадаюче меню (NavGroup) #}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#"
+                           role="button" data-bs-toggle="dropdown"
+                           aria-expanded="false">
+                            {% if item.icon_class %}
+                            <i class="{{ item.icon_class }} me-1"></i>
+                            {% endif %}
+                            {{ item.label }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            {% for child in item.children %}
+                            <li>
+                                <a class="dropdown-item" href="{{ child.get_url }}">
+                                    {% if child.icon_class %}
+                                    <i class="{{ child.icon_class }} me-2"></i>
+                                    {% endif %}
+                                    {{ child.label }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% else %}
+                    {# Звичайний пункт меню (NavItem) #}
                     <li class="nav-item">
                         <a class="nav-link{% if request.resolver_match.url_name == item.url_name %} active{% endif %}"
-                           href="{% url item.url_name %}">
+                           href="{{ item.get_url }}">
                             {% if item.icon_class %}
                             <i class="{{ item.icon_class }} me-1"></i>
                             {% endif %}
                             {{ item.label }}
                         </a>
                     </li>
+                    {% endif %}
                     {% endfor %}
+                    {% endif %}
 
-                    {% if nav_admin %}
+                    {% if nav_admin and user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#"
                            role="button" data-bs-toggle="dropdown"
@@ -58,7 +88,7 @@
                         <ul class="dropdown-menu dropdown-menu-dark">
                             {% for item in nav_admin %}
                             <li>
-                                <a class="dropdown-item" href="{% url item.url_name %}">
+                                <a class="dropdown-item" href="{{ item.get_url }}">
                                     {% if item.icon_class %}
                                     <i class="{{ item.icon_class }} me-2"></i>
                                     {% endif %}
@@ -85,7 +115,7 @@
                         <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
                             <li>
                                 <span class="dropdown-item-text small text-muted">
-                                    {{ user.employee.company.name|default:"Autoservice CRM" }}
+                                    <i class="bi-building me-1"></i>{{ current_company.name|default:"Autoservice CRM" }}
                                 </span>
                             </li>
                             <li><hr class="dropdown-divider border-secondary"></li>

@@ -23,6 +23,46 @@
     </div>
 </div>
 
+<!-- Пошук клієнтів -->
+<div class="card filter-card mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label for="clientSearch" class="form-label fw-semibold mb-1">
+                    <i class="bi-search me-1"></i>Пошук клієнта
+                </label>
+            </div>
+            <div class="col-auto">
+                <input type="text" name="q" id="clientSearch" class="form-control form-control-sm"
+                       placeholder="Ім'я, телефон, email..." value="{{ search_query }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi-search me-1"></i>Шукати
+                </button>
+            </div>
+            {% if search_query %}
+            <div class="col-auto">
+                <a href="{% url 'client_list' %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi-x-circle me-1"></i>Скинути
+                </a>
+            </div>
+            {% endif %}
+            {% if selected_company %}
+            <input type="hidden" name="company" value="{{ selected_company.pk }}">
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{% if search_query %}
+<div class="alert alert-info d-flex align-items-center gap-2 py-1 mb-3" role="alert">
+    <i class="bi-search"></i>
+    <span>Результати пошуку: <strong>{{ search_query }}</strong></span>
+    <span class="ms-auto text-muted small">Знайдено: {{ page_obj.paginator.count }}</span>
+</div>
+{% endif %}
+
 {% if companies|length > 1 %}
 <div class="card filter-card mb-4">
     <div class="card-body py-3">
@@ -42,6 +82,9 @@
                     {% endfor %}
                 </select>
             </div>
+            {% if search_query %}
+            <input type="hidden" name="q" value="{{ search_query }}">
+            {% endif %}
         </form>
     </div>
 </div>
@@ -173,19 +216,18 @@
     var spinner = document.getElementById('clientQuickSpinner');
     var errorsDiv = document.getElementById('clientQuickErrors');
 
-    function getCookie(name) {
-        var cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            var cookies = document.cookie.split(';');
-            for (var i = 0; i < cookies.length; i++) {
-                var cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+    function getCSRFToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) {
+            return meta.getAttribute('content');
         }
-        return cookieValue;
+        return '';
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
     }
 
     // Фільтр телефону — лише цифри
@@ -220,7 +262,7 @@
         fetch('{% url "client_quick_create" %}', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': getCSRFToken(),
             },
             body: formData,
         })
@@ -248,7 +290,7 @@
                                 ? data.errors[field]
                                 : [data.errors[field]];
                             msgs.forEach(function(msg) {
-                                errorHtml += '<div>' + msg + '</div>';
+                                errorHtml += '<div>' + escapeHtml(msg) + '</div>';
                             });
                         }
                     }
@@ -261,7 +303,7 @@
             }
         })
         .catch(function(err) {
-            errorsDiv.innerHTML = '<div>Помилка з\'єднання: ' + err.message + '</div>';
+            errorsDiv.innerHTML = '<div>Помилка з\'єднання: ' + escapeHtml(err.message) + '</div>';
             errorsDiv.classList.remove('d-none');
             submitBtn.disabled = false;
             spinner.classList.add('d-none');

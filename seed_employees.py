@@ -27,13 +27,11 @@ employees_data = [
         'username': 'mechanic1', 'password': 'pass12345',
         'first_name': 'Іван', 'last_name': 'Коваль',
         'role_codename': 'mechanic', 'phone': '+380671111113',
-        'parts_sale_percent': 5.00, 'labor_percent': 10.00,
     },
     {
         'username': 'mechanic2', 'password': 'pass12345',
         'first_name': 'Петро', 'last_name': 'Шевченко',
         'role_codename': 'mechanic', 'phone': '+380671111114',
-        'parts_sale_percent': 5.00, 'labor_percent': 10.00,
     },
     {
         'username': 'accountant1', 'password': 'pass12345',
@@ -77,8 +75,6 @@ for data in employees_data:
         company=company,
         defaults={
             'phone': data['phone'],
-            'parts_sale_percent': data.get('parts_sale_percent', 0.00),
-            'labor_percent': data.get('labor_percent', 0.00),
         },
     )
     if emp_created:

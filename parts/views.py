@@ -1,12 +1,10 @@
-"""Представлення (views) для запчастин з ізоляцією даних."""
+"""Представлення (views) для запчастин."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
 
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, Q
 from django.http import HttpRequest, HttpResponse
@@ -15,80 +13,59 @@ from django.utils import timezone
 
 from accounts.utils import (
     filter_queryset_by_company,
+    get_object_or_404_for_company,
     get_user_company,
-    has_catalog_edit_permission,
-    has_price_edit_permission,
-    is_admin_user,
     paginate_queryset,
-    prepare_list_context,
 )
-from company.models import Company
 from parts.forms import PartForm
 from parts.models import Part
 from purchases.models import PurchaseOrderItem
 from workorders.models import WorkOrderPart
 
+from permissions.utils import permission_required
 
-@login_required
+
+@permission_required('parts', 'read')
 def part_list(request: HttpRequest) -> HttpResponse:
-    """Відображає список запчастин з ізоляцією за компанією.
+    """Відображає список запчастин."""
+    from accounts.utils import is_admin_user
 
-    - Адміністратори бачать усі запчастини (з фільтром за компанією).
-    - Звичайні користувачі — тільки запчастини своєї компанії.
-    """
     qs = Part.objects.select_related('company')
-    qs, companies, selected_company = prepare_list_context(request, qs)
+    if is_admin_user(request=request):
+        # Адміністратори можуть фільтрувати за компанією через ?company=<pk>
+        company_id: str | None = request.GET.get('company')
+        if company_id:
+            try:
+                qs = qs.filter(company_id=int(company_id))
+            except (ValueError, TypeError):
+                pass
+    else:
+        qs = filter_queryset_by_company(request, qs)
     page_obj = paginate_queryset(request, qs)
-    can_edit: bool = has_catalog_edit_permission(request=request)
-    can_edit_price: bool = has_price_edit_permission(request=request)
     return render(request, 'parts/list.html', {
         'page_obj': page_obj,
-        'companies': companies,
-        'selected_company': selected_company,
-        'can_edit': can_edit,
-        'can_edit_price': can_edit_price,
     })
 
 
-@login_required
 @transaction.atomic
+@permission_required('parts', 'create')
 def part_create(request: HttpRequest) -> HttpResponse:
-    """Створює нову запчастину.
-
-    - Адміністратори можуть вибрати будь-яку компанію.
-    - Звичайні користувачі, які мають право редагувати довідники,
-      створюють запчастину тільки у своїй компанії.
-
-    Raises:
-        PermissionDenied: Якщо користувач не має права редагувати
-            довідники (тільки директори та адміністратори).
-    """
-    if not has_catalog_edit_permission(request=request):
-        raise PermissionDenied(
-            'Створювати запчастини можуть лише директори та адміністратори.',
-        )
-
-    can_edit_price: bool = has_price_edit_permission(request=request)
-
-    form_kwargs: dict[str, Any] = {}
-    if not can_edit_price:
-        form_kwargs['can_edit_price'] = False
+    """Створює нову запчастину."""
+    from accounts.utils import is_admin_user
 
     if request.method == 'POST':
-        form = PartForm(request.POST, **form_kwargs)
+        form = PartForm(request.POST)
     else:
-        form = PartForm(**form_kwargs)
-
-    if not is_admin_user(request=request):
-        user_company: Company | None = get_user_company(request=request)
-        if user_company:
-            form.fields['company'].queryset = Company.objects.filter(
-                pk=user_company.pk,
-            )
-            form.fields['company'].initial = user_company.pk
-            form.fields['company'].disabled = True
+        form = PartForm()
 
     if form.is_valid():
+        if is_admin_user(request=request) and form.cleaned_data.get('company'):
+            # Адміністратори можуть створювати в будь-якій компанії
+            form.instance.company = form.cleaned_data['company']
+        else:
+            company = get_user_company(request)
+            if company:
+                form.instance.company = company
         part: Part = form.save()
         return redirect('part_list')
 
@@ -99,42 +76,21 @@ def part_create(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 @transaction.atomic
+@permission_required('parts', 'edit')
 def part_update(request: HttpRequest, pk: int) -> HttpResponse:
     """Редагує запчастину.
 
     Args:
         pk: Первинний ключ запчастини.
 
-    Raises:
-        PermissionDenied: Якщо користувач не має права редагувати
-            довідники (тільки директори та адміністратори).
-
     **Бізнес-логіка:**
-    - Доступ мають:
-      * Редактори довідників (admin/director) — можуть змінювати всі поля.
-      * Редактори цін (manager/purchaser) — можуть змінювати тільки
-        продажну ціну (`selling_price`).
-    - Якщо запчастина не належить до компанії користувача — 404.
     - Якщо на запчастину є прихідні накладні (has_purchase_orders):
       * Заборонено змінювати назву (`name`), артикул (`part_number`),
         виробника (`manufacturer`) та одиницю виміру (`unit`).
       * Продажна ціна та інші поля залишаються доступними.
     """
-    has_catalog_perm: bool = has_catalog_edit_permission(request=request)
-    has_price_perm: bool = has_price_edit_permission(request=request)
-
-    if not has_catalog_perm and not has_price_perm:
-        raise PermissionDenied(
-            'Редагувати запчастини можуть лише директори, адміністратори, '
-            'менеджери та закупівельники.',
-        )
-
-    part: Part = get_object_or_404(
-        filter_queryset_by_company(request, Part.objects.all()),
-        pk=pk,
-    )
+    part: Part = get_object_or_404_for_company(request, Part, pk=pk)
 
     has_purchase_orders: bool = part.has_purchase_orders
 
@@ -145,31 +101,10 @@ def part_update(request: HttpRequest, pk: int) -> HttpResponse:
     if has_purchase_orders:
         form_kwargs['disable_identity_fields'] = True
 
-    # Якщо користувач не має прав редактора довідників — обмежуємо
-    # редагування тільки полем продажної ціни
-    only_price: bool = has_price_perm and not has_catalog_perm
-    if only_price:
-        form_kwargs['can_edit_price'] = True
-    elif not has_price_perm:
-        form_kwargs['can_edit_price'] = False
-
     if request.method == 'POST':
         form = PartForm(request.POST, **form_kwargs)
     else:
         form = PartForm(**form_kwargs)
-
-    if only_price:
-        # Для редакторів цін блокуємо тільки ідентифікаційні поля,
-        # але дозволяємо редагувати мінімальний залишок,
-        # місце на складі, активність та продажну ціну
-        readonly_fields: set[str] = {
-            'name', 'part_number', 'manufacturer', 'unit', 'company',
-        }
-        for field_name in form.fields:
-            if field_name in readonly_fields:
-                form.fields[field_name].disabled = True
-    elif not is_admin_user(request=request):
-        form.fields['company'].disabled = True
 
     if form.is_valid():
         form.save()
@@ -182,30 +117,18 @@ def part_update(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-@login_required
 @transaction.atomic
+@permission_required('parts', 'delete')
 def part_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    """Видаляє запчастину з перевіркою доступу до компанії.
+    """Видаляє запчастину.
 
     Якщо на запчастину є прихідні накладні (PurchaseOrderItem),
     видалення заборонено — повертається сторінка з помилкою.
 
     Args:
         pk: Первинний ключ запчастини.
-
-    Raises:
-        PermissionDenied: Якщо користувач не має права видаляти
-            довідники (тільки директори та адміністратори).
     """
-    if not has_catalog_edit_permission(request=request):
-        raise PermissionDenied(
-            'Видаляти запчастини можуть лише директори та адміністратори.',
-        )
-
-    part: Part = get_object_or_404(
-        filter_queryset_by_company(request, Part.objects.all()),
-        pk=pk,
-    )
+    part: Part = get_object_or_404_for_company(request, Part, pk=pk)
 
     if part.has_purchase_orders:
         return render(request, 'parts/error.html', {
@@ -225,7 +148,7 @@ def part_delete(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-@login_required
+@permission_required('parts', 'read')
 def part_movement(request: HttpRequest, pk: int) -> HttpResponse:
     """Відображає рух запчастини в єдиному хронологічному списку.
 
@@ -243,10 +166,7 @@ def part_movement(request: HttpRequest, pk: int) -> HttpResponse:
     - За замовчуванням показує дані за останній рік.
     - Дані сортуються від найновіших до найстаріших у єдиному списку.
     """
-    part: Part = get_object_or_404(
-        filter_queryset_by_company(request, Part.objects.all()),
-        pk=pk,
-    )
+    part: Part = get_object_or_404_for_company(request, Part, pk=pk)
 
     today: datetime = timezone.now()
     default_from: datetime = today - timedelta(days=365)

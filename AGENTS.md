@@ -32,7 +32,7 @@ Django 6.0.3 / SQLite / Bootstrap 5.3 CDN / pytest 8.x.
 - **FBVs тільки**, всі з `@login_required`. Тонкі views, бізнес-логіка в `services.py` (accounts, parts, purchases, workorders) або `@property` моделей.
 - **Атомарність**: write-операції в `@transaction.atomic`. Залишки через `F()` (race condition захист).
 - **100% Type Hinting**.
-- **Навігація**: `config/context_processors.py` формує `nav_main` / `nav_admin` через `NavItem` dataclass з permission checks.
+- **Навігація**: Лівий сайдбар (260px). `config/context_processors.py` формує `nav_main` / `nav_admin` через `NavItem` dataclass з permission checks. На мобільних пристроях сайдбар згортається через кнопку-гамбургер.
 
 ## Центральні утиліти (`accounts/utils.py`)
 
@@ -45,6 +45,7 @@ Django 6.0.3 / SQLite / Bootstrap 5.3 CDN / pytest 8.x.
 ## Тестування
 
 - `conftest.py` у корені — фікстура `roles` (7 ролей). `@pytest.mark.django_db` для БД-тестів.
+- **НЕ запускай pytest автоматично** після змін у коді. Тільки `python manage.py check`.
 - Фікстури в `conftest.py` кожного додатку, ланцюжок: `company` → `user` → `employee` → ...
 - Тести в `tests/test_models.py`, `tests/test_services.py`, `tests/test_views.py`. AAA pattern.
 

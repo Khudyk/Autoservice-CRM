@@ -1,185 +1,109 @@
-"""Тести контекст-процесора навігації та Role-Based Menu."""
+"""Тести контекст-процесора навігації."""
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 from django.contrib.auth.models import User
-from django.http import HttpRequest
 from django.test import Client
+from django.urls import reverse
 
 from accounts.models import Employee, Role
 from company.models import Company
+from permissions.models import EmployeePermission, Module
+
+
+MENU_ITEMS: set[str] = {
+    'Клієнти',
+    'Автомобілі',
+    'Наряди',
+    'Співробітники',
+    'Довідники',
+    'Закупівля / Розрахунки',
+    'Адміністрування',
+}
+
+# Групи меню не показуються як текст у навігації, але їхні дочірні пункти — так
+CHILD_ITEMS: set[str] = {
+    'Види робіт',
+    'Запчастини',
+    'Постачальники',
+    'Закупівля',
+    'Розрахунки',
+}
+
+ALL_VISIBLE_ITEMS: set[str] = MENU_ITEMS | CHILD_ITEMS
+
+
+def _create_employee_with_full_access(
+    username: str, password: str = 'pass123', is_staff: bool = False,
+) -> User:
+    """Створює користувача з Employee та правами на всі модулі."""
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        is_staff=is_staff,
+    )
+    company = Company.objects.create(name='Test Company')
+    role, _ = Role.objects.get_or_create(codename='admin', defaults={'name': 'Адміністратор'})
+    employee = Employee.objects.create(user=user, company=company)
+    employee.roles.add(role)
+
+    # Створюємо права на всі модулі
+    for module_data in [
+        ('dashboard', 'Головна'),
+        ('companies', 'Компанії'),
+        ('clients', 'Клієнти'),
+        ('vehicles', 'Автомобілі'),
+        ('workorders', 'Наряди'),
+        ('employees', 'Співробітники'),
+        ('worktypes', 'Види робіт'),
+        ('suppliers', 'Постачальники'),
+        ('parts', 'Запчастини'),
+        ('purchases', 'Закупівля'),
+        ('payments', 'Розрахунки'),
+        ('administration', 'Адміністрування'),
+        ('permissions_manage', 'Керування правами'),
+    ]:
+        module, _ = Module.objects.get_or_create(
+            codename=module_data[0],
+            defaults={'name': module_data[1]},
+        )
+        EmployeePermission.objects.create(
+            employee=employee, module=module, can_read=True,
+        )
+    return user
 
 
 class TestNavigationForAnonymousUser:
     """Навігація для анонімного користувача."""
 
-    def test_anonymous_sees_only_login_link(self, client: Client) -> None:
-        """Анонім бачить тільки кнопку 'Увійти', меню приховане."""
+    def test_anonymous_redirected_to_login(self, client: Client, db: None) -> None:
+        """Анонім перенаправляється на сторінку входу."""
         response = client.get('/')
-        content: str = response.content.decode()
-
-        # Анонім бачить "Увійти"
-        assert 'Увійти' in content
-        # Не бачить пункти меню
-        assert 'Компанії' not in content
-        assert 'Співробітники' not in content
-        assert 'Адмін' not in content
+        # Анонім отримує редирект на логін (302)
+        assert response.status_code == 302
+        assert response.url == reverse('login')
 
 
-class TestNavigationForRegularUser:
-    """Навігація для звичайного аутентифікованого користувача."""
+class TestNavigationForAnyUser:
+    """Усі аутентифіковані користувачі бачать однакову навігацію."""
 
-    @pytest.fixture
-    def logged_client(self, client: Client, db: None) -> Client:
-        """Створює клієнта із залогіненим звичайним користувачем."""
-        User.objects.create_user(
-            username='regular',
+    @pytest.fixture(params=['regular', 'staff', 'admin_role', 'mechanic_role'])
+    def logged_client(self, request, client: Client, db: None) -> Client:
+        """Створює клієнта з різними типами користувачів."""
+        is_staff = request.param == 'staff'
+        user = _create_employee_with_full_access(
+            username=request.param,
             password='pass123',
+            is_staff=is_staff,
         )
-        client.login(username='regular', password='pass123')
+        client.login(username=request.param, password='pass123')
         return client
 
-    def test_regular_user_sees_main_menu(self, logged_client: Client) -> None:
-        """Звичайний користувач (без Employee) бачить тільки загальнодоступні пункти."""
+    def test_user_sees_all_menu_items(self, logged_client: Client) -> None:
+        """Аутентифікований користувач бачить усі пункти меню."""
         response = logged_client.get('/')
         content: str = response.content.decode()
-        assert 'Компанії' not in content     # тільки для admin-ролі
-        assert 'Співробітники' not in content  # тільки для admin-ролі
-        assert 'Автомобілі' in content
-        assert 'Запчастини' in content
-        assert 'Наряди' in content
 
-    def test_regular_user_does_not_see_admin_menu(
-        self,
-        logged_client: Client,
-    ) -> None:
-        """Звичайний користувач НЕ бачить адмін-меню."""
-        response = logged_client.get('/')
-        content: str = response.content.decode()
-        assert 'Адмін' not in content
-        assert 'Адміністрування' not in content
-
-
-class TestNavigationForStaffUser:
-    """Навігація для користувача з is_staff=True."""
-
-    @pytest.fixture
-    def staff_client(self, client: Client, db: None) -> Client:
-        """Створює клієнта із залогіненим staff-користувачем."""
-        User.objects.create_user(
-            username='staff_user',
-            password='pass123',
-            is_staff=True,
-        )
-        client.login(username='staff_user', password='pass123')
-        return client
-
-    def test_staff_user_sees_main_menu(self, staff_client: Client) -> None:
-        """Staff користувач бачить усі пункти меню, включаючи 'Компанії'."""
-        response = staff_client.get('/')
-        content: str = response.content.decode()
-        assert 'Компанії' in content  # staff = admin_role
-        assert 'Співробітники' in content
-
-    def test_staff_user_sees_admin_menu(self, staff_client: Client) -> None:
-        """Staff користувач бачить адмін-меню (Адміністрування)."""
-        response = staff_client.get('/')
-        content: str = response.content.decode()
-        assert 'Адмін' in content
-        assert 'Адміністрування' in content
-
-
-class TestNavigationForEmployeeAdminRole:
-    """Навігація для користувача з бізнес-роллю admin/director."""
-
-    @pytest.fixture
-    def admin_role_client(self, client: Client, roles: None) -> Client:
-        """Створює клієнта з Employee.role='admin', без is_staff."""
-        user: User = User.objects.create_user(
-            username='admin_role',
-            password='pass123',
-            is_staff=False,
-        )
-        company: Company = Company.objects.create(name='Admin Company')
-        emp = Employee.objects.create(
-            user=user,
-            company=company,
-        )
-        emp.roles.set([Role.objects.get(codename='admin')])
-        client.login(username='admin_role', password='pass123')
-        return client
-
-    @pytest.fixture
-    def director_role_client(self, client: Client, roles: None) -> Client:
-        """Створює клієнта з Employee.role='director', без is_staff."""
-        user: User = User.objects.create_user(
-            username='director_role',
-            password='pass123',
-            is_staff=False,
-        )
-        company: Company = Company.objects.create(name='Director Company')
-        emp = Employee.objects.create(
-            user=user,
-            company=company,
-        )
-        emp.roles.set([Role.objects.get(codename='director')])
-        client.login(username='director_role', password='pass123')
-        return client
-
-    def test_admin_role_sees_admin_menu(
-        self,
-        admin_role_client: Client,
-    ) -> None:
-        """Користувач з роллю 'admin' бачить адмін-меню, але не 'Компанії'."""
-        response = admin_role_client.get('/')
-        content: str = response.content.decode()
-        assert 'Компанії' not in content  # тільки Django staff
-        assert 'Адмін' in content
-        assert 'Адміністрування' in content
-
-    def test_director_role_sees_admin_menu(
-        self,
-        director_role_client: Client,
-    ) -> None:
-        """Користувач з роллю 'director' бачить адмін-меню, але не 'Компанії'."""
-        response = director_role_client.get('/')
-        content: str = response.content.decode()
-        assert 'Компанії' not in content  # тільки Django staff
-        assert 'Адмін' in content
-        assert 'Адміністрування' in content
-
-
-class TestNavigationForMechanicRole:
-    """Навігація для користувача з бізнес-роллю mechanic (не admin)."""
-
-    @pytest.fixture
-    def mechanic_client(self, client: Client, roles: None) -> Client:
-        """Створює клієнта з Employee.role='mechanic', без is_staff."""
-        user: User = User.objects.create_user(
-            username='mechanic_role',
-            password='pass123',
-        )
-        company: Company = Company.objects.create(name='Service Co')
-        emp = Employee.objects.create(
-            user=user,
-            company=company,
-        )
-        emp.roles.set([Role.objects.get(codename='mechanic')])
-        client.login(username='mechanic_role', password='pass123')
-        return client
-
-    def test_mechanic_sees_main_but_not_admin_menu(
-        self,
-        mechanic_client: Client,
-    ) -> None:
-        """Майстер бачить основне меню, але не 'Компанії', 'Співробітники' та адмін."""
-        response = mechanic_client.get('/')
-        content: str = response.content.decode()
-        assert 'Компанії' not in content       # тільки для admin-ролі
-        assert 'Співробітники' not in content   # тільки для admin-ролі
-        assert 'Автомобілі' in content
-        assert 'Наряди' in content
-        assert 'Адмін' not in content
+        for item in ALL_VISIBLE_ITEMS:
+            assert item in content, f'Пункт меню "{item}" має бути видимий'

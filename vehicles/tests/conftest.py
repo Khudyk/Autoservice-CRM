@@ -11,18 +11,44 @@ from django.test import Client
 
 from accounts.models import Employee, Role
 from company.models import Company
+from permissions.models import EmployeePermission, Module
 from vehicles.models import Vehicle
 from workorders.models import WorkOrder
 
 
-@pytest.fixture
-def company(db: Any) -> Company:
-    """Створює тестову компанію."""
-    return Company.objects.create(
-        name='Тестова компанія',
-        email='test@company.com',
-        phone='+380501234567',
+def _grant_vehicle_permissions(
+    employee: Employee,
+    can_read: bool = False,
+    can_create: bool = False,
+    can_edit: bool = False,
+    can_delete: bool = False,
+) -> None:
+    """Надає співробітнику права на модуль vehicles."""
+    module, _ = Module.objects.get_or_create(
+        codename='vehicles',
+        defaults={'name': 'Автомобілі'},
     )
+    EmployeePermission.objects.update_or_create(
+        employee=employee,
+        module=module,
+        defaults={
+            'can_read': can_read,
+            'can_create': can_create,
+            'can_edit': can_edit,
+            'can_delete': can_delete,
+        },
+    )
+
+
+@pytest.fixture(scope='module')
+def company(django_db_blocker: Any) -> Company:
+    """Створює тестову компанію (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(
+            name='Тестова компанія',
+            email='test@company.com',
+            phone='+380501234567',
+        )
 
 
 @pytest.fixture
@@ -78,6 +104,7 @@ def regular_client(client: Client, employee: Employee) -> Client:
     """Клієнт, залогінений як механік (без прав редагування каталогу)."""
     employee.user.is_staff = False
     employee.user.save()
+    _grant_vehicle_permissions(employee, can_read=True)
     client.login(username=employee.user.username, password='testpass123')
     return client
 
@@ -87,6 +114,9 @@ def admin_client(client: Client, admin_employee: Employee) -> Client:
     """Клієнт, залогінений як співробітник з роллю admin (має права редагування каталогу)."""
     admin_employee.user.is_staff = False
     admin_employee.user.save()
+    _grant_vehicle_permissions(
+        admin_employee, can_read=True, can_create=True, can_edit=True, can_delete=True,
+    )
     client.login(username=admin_employee.user.username, password='testpass123')
     return client
 
@@ -110,10 +140,11 @@ def staff_client(client: Client, employee: Employee) -> Client:
     return client
 
 
-@pytest.fixture
-def other_company(db: Any) -> Company:
-    """Інша компанія для тестів ізоляції."""
-    return Company.objects.create(name='Інша компанія')
+@pytest.fixture(scope='module')
+def other_company(django_db_blocker: Any) -> Company:
+    """Інша компанія для тестів ізоляції (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(name='Інша компанія')
 
 
 @pytest.fixture

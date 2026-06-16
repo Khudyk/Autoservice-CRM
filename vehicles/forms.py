@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django import forms
 
+from clients.models import Client
 from vehicles.models import Vehicle
 
 
 class VehicleForm(forms.ModelForm):
     """Форма створення та редагування автомобіля."""
+
+    def __init__(self, *args: Any, company: Any = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if company is not None:
+            self.fields['client'].queryset = Client.objects.filter(company=company)
 
     class Meta:
         model = Vehicle

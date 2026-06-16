@@ -70,19 +70,19 @@ class TestVehicleListView:
 
 
 # ======================================================================
-#  Vehicle CREATE — доступ лише admin/director/staff
+#  Vehicle QUICK-CREATE (JSON) — доступ лише admin/director/staff
 # ======================================================================
 
 
-class TestVehicleCreateView:
-    """Тести для vehicle_create view."""
+class TestVehicleQuickCreateView:
+    """Тести для vehicle_quick_create (JSON) view."""
 
     CREATE_DATA: dict = {
-        "vin_code": "NEWVIN00000000001",
+        "vin_code": "QUICKVIN000000017",
         "brand": "Toyota",
         "model": "Camry",
         "year": 2023,
-        "engine_type": Vehicle.EngineType.HYBRID,
+        "engine_type": "hybrid",
         "engine_displacement": 2.5,
     }
 
@@ -92,7 +92,7 @@ class TestVehicleCreateView:
         db,
     ) -> None:
         """Анонім перенаправляється на вхід (302)."""
-        url: str = reverse("vehicle_create")
+        url: str = reverse("vehicle_quick_create")
         response = client.get(url)
         assert response.status_code == 302
 
@@ -101,88 +101,78 @@ class TestVehicleCreateView:
         mechanic_client: Client,
     ) -> None:
         """Механік отримує 403 — створення лише для admin/director."""
-        url: str = reverse("vehicle_create")
+        url: str = reverse("vehicle_quick_create")
         response = mechanic_client.get(url)
         assert response.status_code == 403
 
-    def test_staff_can_create(
-        self,
-        staff_client: Client,
-    ) -> None:
-        """Staff може створювати автомобілі."""
-        url: str = reverse("vehicle_create")
-        response = staff_client.get(url)
-        assert response.status_code == 200
-
-    def test_admin_user_create_sets_own_company(
+    def test_admin_can_create(
         self,
         admin_client: Client,
         admin_employee,
     ) -> None:
-        """Адміністратор створює авто у своїй компанії."""
-        url: str = reverse("vehicle_create")
+        """Адміністратор може створити авто через JSON."""
+        url: str = reverse("vehicle_quick_create")
         response = admin_client.post(url, {**self.CREATE_DATA})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
 
-        if response.status_code == 200:
-            form = response.context.get("form") if response.context else None
-            if form and form.errors:
-                raise AssertionError(f"Form errors: {dict(form.errors)}")
-
-        created: Vehicle = Vehicle.objects.get(vin_code="NEWVIN00000000001")
+        created: Vehicle = Vehicle.objects.get(vin_code="QUICKVIN000000017")
         assert created.company == admin_employee.company
         assert created.brand == "Toyota"
         assert created.engine_type == Vehicle.EngineType.HYBRID
 
-    def test_staff_user_can_create_in_any_company(
+    def test_staff_can_create_in_any_company(
         self,
         staff_client: Client,
         other_company: Company,
     ) -> None:
         """Staff може створити авто в будь-якій компанії."""
-        url: str = reverse("vehicle_create")
+        url: str = reverse("vehicle_quick_create")
         data: dict = {
             **self.CREATE_DATA,
-            "vin_code": "STAFFVIN000000000",
+            "vin_code": "STAFFQVIN00000001",
             "company": other_company.pk,
         }
         response = staff_client.post(url, data)
+        assert response.status_code == 200
+        data_json = response.json()
+        assert data_json["success"] is True
 
-        if response.status_code == 200:
-            form = response.context.get("form") if response.context else None
-            if form and form.errors:
-                raise AssertionError(f"Form errors: {dict(form.errors)}")
-
-        created: Vehicle = Vehicle.objects.get(vin_code="STAFFVIN000000000")
+        created: Vehicle = Vehicle.objects.get(vin_code="STAFFQVIN00000001")
         assert created.company == other_company
 
-    def test_invalid_vin_shows_error(
+    def test_invalid_vin_returns_error(
         self,
         admin_client: Client,
     ) -> None:
         """VIN коротший за 17 символів — помилка валідації."""
-        url: str = reverse("vehicle_create")
+        url: str = reverse("vehicle_quick_create")
         data: dict = {
             **self.CREATE_DATA,
             "vin_code": "SHORT",
         }
         response = admin_client.post(url, data)
-        assert response.status_code == 200
-        assert response.context["form"].errors
+        assert response.status_code == 400
+        data_json = response.json()
+        assert data_json["success"] is False
+        assert "vin_code" in data_json["errors"]
 
-    def test_invalid_year_shows_error(
+    def test_invalid_year_returns_error(
         self,
         admin_client: Client,
     ) -> None:
         """Рік менший за 1900 — помилка валідації."""
-        url: str = reverse("vehicle_create")
+        url: str = reverse("vehicle_quick_create")
         data: dict = {
             **self.CREATE_DATA,
-            "vin_code": "YEARERRORVIN00000",
+            "vin_code": "YEARERRQVIN012345",
             "year": 1800,
         }
         response = admin_client.post(url, data)
-        assert response.status_code == 200
-        assert response.context["form"].errors
+        assert response.status_code == 400
+        data_json = response.json()
+        assert data_json["success"] is False
 
 
 # ======================================================================

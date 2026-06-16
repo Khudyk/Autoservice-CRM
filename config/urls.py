@@ -15,13 +15,23 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from django.urls import path, include
 
-from config.views import index
+from config import views
+
+handler404 = views.page_not_found
+
+
+def _test_404(request: HttpRequest) -> HttpResponse:
+    return render(request, '404.html', {'exception': Exception('Тестова 404 — сторінку не знайдено')}, status=404)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', index, name='index'),
+    path('', views.index, name='index'),
+    path('test-404/', _test_404, name='test_404'),
     path('companies/', include('company.urls')),
     path('employees/', include('accounts.urls')),
     path('vehicles/', include('vehicles.urls')),
@@ -31,4 +41,5 @@ urlpatterns = [
     path('purchases/', include('purchases.urls')),
     path('workorders/', include('workorders.urls')),
     path('clients/', include('clients.urls')),
+    path('permissions/', include('permissions.urls')),
 ]

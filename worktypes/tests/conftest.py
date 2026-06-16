@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -12,14 +13,15 @@ from company.models import Company
 from worktypes.models import WorkType
 
 
-@pytest.fixture
-def company(db: Any) -> Company:
-    """Створює тестову компанію."""
-    return Company.objects.create(
-        name='Тестова компанія',
-        email='test@company.com',
-        phone='+380501234567',
-    )
+@pytest.fixture(scope='module')
+def company(django_db_blocker: Any) -> Company:
+    """Створює тестову компанію (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(
+            name='Тестова компанія',
+            email='test@company.com',
+            phone='+380501234567',
+        )
 
 
 @pytest.fixture
@@ -71,10 +73,11 @@ def admin_employee(db: Any, roles: None, admin_user: User, company: Company) -> 
     return emp
 
 
-@pytest.fixture
-def other_company(db: Any) -> Company:
-    """Інша компанія для тестів ізоляції."""
-    return Company.objects.create(name='Інша компанія')
+@pytest.fixture(scope='module')
+def other_company(django_db_blocker: Any) -> Company:
+    """Інша компанія для тестів ізоляції (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(name='Інша компанія')
 
 
 @pytest.fixture
@@ -84,5 +87,6 @@ def worktype(db: Any, company: Company) -> WorkType:
         name='Заміна масла',
         description='Заміна моторної оливи та фільтра',
         category=WorkType.Category.MAINTENANCE,
+        default_price=Decimal('500.00'),
         company=company,
     )

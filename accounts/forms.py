@@ -8,7 +8,6 @@ from django import forms
 from django.contrib.auth.models import User
 
 from accounts.models import Employee, Role
-from accounts.utils import get_user_company, is_admin_user
 from company.models import Company
 
 
@@ -64,34 +63,16 @@ class EmployeeForm(forms.ModelForm):
 
     class Meta:
         model = Employee
-        fields = ['company', 'roles', 'phone', 'is_active', 'parts_sale_percent', 'labor_percent']
+        fields = ['company', 'roles', 'phone', 'is_active']
         widgets = {
             'roles': forms.CheckboxSelectMultiple(attrs={'class': 'role-chip-input'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'parts_sale_percent': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0',
-                'max': '100',
-            }),
-            'labor_percent': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0',
-                'max': '100',
-            }),
         }
         labels = {
             'roles': 'Ролі',
             'phone': 'Телефон',
             'is_active': 'Активний',
-            'parts_sale_percent': 'Відсоток від продажу запчастин',
-            'labor_percent': 'Відсоток від робіт',
-        }
-        help_texts = {
-            'parts_sale_percent': 'Від 0% до 100%',
-            'labor_percent': 'Від 0% до 100%',
         }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -104,21 +85,6 @@ class EmployeeForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         is_update: bool = self.instance.pk is not None
-
-        # Налаштування компанії
-        if current_user and current_user.is_authenticated:
-            if not is_admin_user(request=None, user=current_user):
-                company: Company | None = get_user_company(
-                    request=None, user=current_user,
-                )
-                if company:
-                    self.fields['company'].queryset = Company.objects.filter(
-                        pk=company.pk,
-                    )
-                    self.fields['company'].initial = company
-                    self.fields['company'].disabled = True
-                else:
-                    self.fields['company'].queryset = Company.objects.none()
 
         # Режим редагування — підставляємо дані користувача
         if is_update and self.instance.user_id:

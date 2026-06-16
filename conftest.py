@@ -14,7 +14,7 @@ def roles(db: Any) -> None:
     """Гарантує наявність базових ролей у БД перед тестом.
 
     Створює 7 ролей, якщо вони ще не існують (перевірка .count()
-    дозволяє використовувати одну фікстуру з будь-яким scope).
+    дозволяє безпечно використовувати з --reuse-db).
     """
     if Role.objects.count() == 0:
         roles_data: list[tuple[str, str]] = [
@@ -26,5 +26,7 @@ def roles(db: Any) -> None:
             ('purchaser', 'Закупівельник'),
             ('storekeeper', 'Складовщик'),
         ]
-        for codename, name in roles_data:
-            Role.objects.create(codename=codename, name=name)
+        Role.objects.bulk_create([
+            Role(codename=codename, name=name)
+            for codename, name in roles_data
+        ])

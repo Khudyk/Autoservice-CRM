@@ -13,7 +13,8 @@ class WorkTypeForm(forms.ModelForm):
     class Meta:
         model = WorkType
         fields = [
-            'name', 'description', 'category', 'is_active', 'company',
+            'name', 'description', 'category', 'default_price',
+            'is_active', 'company',
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -26,6 +27,12 @@ class WorkTypeForm(forms.ModelForm):
                 'placeholder': 'Детальний опис роботи...',
             }),
             'category': forms.Select(attrs={'class': 'form-control'}),
+            'default_price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00',
+            }),
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
             }),
@@ -35,6 +42,7 @@ class WorkTypeForm(forms.ModelForm):
             'name': 'Назва роботи',
             'description': 'Опис',
             'category': 'Категорія',
+            'default_price': 'Вартість, грн',
             'is_active': 'Активна',
             'company': 'Компанія',
         }

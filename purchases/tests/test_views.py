@@ -15,6 +15,7 @@ from django.urls import reverse
 from accounts.models import Employee, Role
 from company.models import Company
 from parts.models import Part
+from permissions.models import EmployeePermission, Module
 from purchases.models import PurchaseOrder, PurchaseOrderItem
 from suppliers.models import Supplier
 
@@ -24,40 +25,26 @@ from suppliers.models import Supplier
 # =============================================================================
 
 
-@pytest.fixture
-def roles_setup(db: None) -> None:
-    """Гарантує базові ролі."""
-    if Role.objects.count() == 0:
-        for codename, name in [
-            ("director", "Директор"),
-            ("manager", "Менеджер"),
-            ("mechanic", "Майстер"),
-            ("accountant", "Бухгалтер"),
-            ("admin", "Адміністратор"),
-            ("purchaser", "Закупівельник"),
-            ("storekeeper", "Складовщик"),
-        ]:
-            Role.objects.create(codename=codename, name=name)
+@pytest.fixture(scope='module')
+def company(django_db_blocker: None) -> Company:
+    """Створює тестову компанію (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(
+            name="Тестова компанія",
+            email="test@company.com",
+            phone="+380501234567",
+        )
+
+
+@pytest.fixture(scope='module')
+def other_company(django_db_blocker: None) -> Company:
+    """Інша компанія для тестів ізоляції (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(name="Інша компанія")
 
 
 @pytest.fixture
-def company(db: None) -> Company:
-    """Створює тестову компанію."""
-    return Company.objects.create(
-        name="Тестова компанія",
-        email="test@company.com",
-        phone="+380501234567",
-    )
-
-
-@pytest.fixture
-def other_company(db: None) -> Company:
-    """Інша компанія для тестів ізоляції."""
-    return Company.objects.create(name="Інша компанія")
-
-
-@pytest.fixture
-def employee(roles_setup, company: Company) -> Employee:
+def employee(roles, company: Company) -> Employee:
     """Співробітник-механік."""
     user = User.objects.create_user(username="testuser", password="testpass123")
     emp = Employee.objects.create(user=user, company=company, phone="+380501112233")
@@ -127,31 +114,58 @@ def ordered_order(draft_order_with_items: PurchaseOrder) -> PurchaseOrder:
 # =============================================================================
 
 
-def _make_role_client(client: Client, roles_setup, company: Company, role_name: str) -> Client:
-    """Допоміжна функція для створення клієнта з роллю."""
+def _make_role_client(
+    client: Client, roles, company: Company, role_name: str,
+    permissions: list[tuple[str, list[str]]] | None = None,
+) -> Client:
+    """Допоміжна функція для створення клієнта з роллю.
+
+    Args:
+        permissions: Список кортежів (module_codename, [action, ...]).
+    """
     user = User.objects.create_user(username=f"user_{role_name}", password="testpass123")
     emp = Employee.objects.create(user=user, company=company, phone="+380509990000")
     emp.roles.set([Role.objects.get(codename=role_name)])
     user.is_staff = False
     user.save()
+    if permissions:
+        for module_codename, actions in permissions:
+            module, _ = Module.objects.get_or_create(
+                codename=module_codename,
+                defaults={'name': module_codename},
+            )
+            defaults: dict[str, bool] = {}
+            for action in actions:
+                defaults[f'can_{action}'] = True
+            EmployeePermission.objects.update_or_create(
+                employee=emp,
+                module=module,
+                defaults=defaults,
+            )
     client.login(username=f"user_{role_name}", password="testpass123")
     return client
 
 
 @pytest.fixture
-def mechanic_client(client: Client, roles_setup, company: Company) -> Client:
+def mechanic_client(client: Client, roles, company: Company) -> Client:
     """Клієнт-механік."""
-    return _make_role_client(client, roles_setup, company, "mechanic")
+    return _make_role_client(client, roles, company, "mechanic")
 
 
 @pytest.fixture
-def admin_client(client: Client, roles_setup, company: Company) -> Client:
+def admin_client(client: Client, roles, company: Company) -> Client:
     """Клієнт-адміністратор."""
-    return _make_role_client(client, roles_setup, company, "admin")
+    return _make_role_client(
+        client, roles, company, "admin",
+        permissions=[
+            ('purchases', ['read', 'create', 'edit', 'delete']),
+            ('payments', ['read', 'create', 'edit', 'delete']),
+        ],
+    )
 
 
 @pytest.fixture
-def staff_client(client: Client, roles_setup, company: Company) -> Client:
+def staff_client(client: Client, roles, company: Company) -> Client:
     """Клієнт-staff/superuser."""
     user = User.objects.create_user(
         username="staff_user", password="testpass123",
@@ -166,21 +180,37 @@ def staff_client(client: Client, roles_setup, company: Company) -> Client:
 
 
 @pytest.fixture
-def manager_client(client: Client, roles_setup, company: Company) -> Client:
+def manager_client(client: Client, roles, company: Company) -> Client:
     """Клієнт-менеджер."""
-    return _make_role_client(client, roles_setup, company, "manager")
+    return _make_role_client(
+        client, roles, company, "manager",
+        permissions=[
+            ('purchases', ['read', 'create', 'edit']),
+            ('payments', ['read', 'create', 'edit']),
+        ],
+    )
 
 
 @pytest.fixture
-def purchaser_client(client: Client, roles_setup, company: Company) -> Client:
+def purchaser_client(client: Client, roles, company: Company) -> Client:
     """Клієнт-закупівельник."""
-    return _make_role_client(client, roles_setup, company, "purchaser")
+    return _make_role_client(
+        client, roles, company, "purchaser",
+        permissions=[
+            ('purchases', ['read', 'create', 'edit']),
+        ],
+    )
 
 
 @pytest.fixture
-def storekeeper_client(client: Client, roles_setup, company: Company) -> Client:
+def storekeeper_client(client: Client, roles, company: Company) -> Client:
     """Клієнт-складовщик."""
-    return _make_role_client(client, roles_setup, company, "storekeeper")
+    return _make_role_client(
+        client, roles, company, "storekeeper",
+        permissions=[
+            ('purchases', ['read']),
+        ],
+    )
 
 
 # =============================================================================

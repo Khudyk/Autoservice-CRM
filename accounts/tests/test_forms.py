@@ -42,8 +42,6 @@ class TestEmployeeFormCreate:
             'roles': [role_mechanic.pk, role_manager.pk],
             'phone': '+380501234567',
             'is_active': True,
-            'parts_sale_percent': 10.00,
-            'labor_percent': 20.00,
         }, user=_staff_user(db))
 
         assert form.is_valid(), f'Form errors: {dict(form.errors)}'
@@ -58,8 +56,6 @@ class TestEmployeeFormCreate:
         assert employee.company == company
         assert employee.phone == '+380501234567'
         assert employee.is_active is True
-        assert employee.parts_sale_percent == 10.00
-        assert employee.labor_percent == 20.00
 
         # Перевіряємо, що M2M ролі збереглися
         assert employee.roles.count() == 2
@@ -153,44 +149,6 @@ class TestEmployeeFormCreate:
                 'UserManager.make_random_password() відсутній у Django 6.0. '
                 'Потрібно виправити forms.py',
             )
-
-    def test_form_with_negative_percentages_raises_error(
-        self,
-        db: None,
-        roles: None,
-        company: Company,
-    ) -> None:
-        """Перевіряє, що від'ємні відсотки викликають помилку валідації."""
-        from django.core.exceptions import ValidationError
-        form = EmployeeForm(data={
-            'username': 'neg_pct_user',
-            'email': 'neg@test.com',
-            'password': 'testpass123',
-            'company': company.pk,
-            'parts_sale_percent': -10.00,
-        }, user=_staff_user(db))
-
-        # Валідація не спрацьовує на рівні is_valid для Decimal полів
-        # (Django сам нормалізує значення), але може бути помилка
-        assert not form.is_valid()
-
-    def test_form_with_percentages_over_100_raises_error(
-        self,
-        db: None,
-        roles: None,
-        company: Company,
-    ) -> None:
-        """Перевіряє, що відсотки >100 викликають помилку валідації."""
-        form = EmployeeForm(data={
-            'username': 'high_pct_user',
-            'email': 'high@test.com',
-            'password': 'testpass123',
-            'company': company.pk,
-            'parts_sale_percent': 150.00,
-        }, user=_staff_user(db))
-
-        assert not form.is_valid()
-
 
 class TestEmployeeFormUpdate:
     """Тести EmployeeForm у режимі редагування."""

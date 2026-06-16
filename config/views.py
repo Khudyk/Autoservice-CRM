@@ -1,59 +1,57 @@
 """Головне представлення — дашборд системи.
 
-Показує останні замовлення й наряди для поточної компанії.
+Показує останні замовлення й наряди.
 """
 
 from django.shortcuts import render
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 
-from company.models import Company
+from accounts.utils import filter_queryset_by_company
 from purchases.models import PurchaseOrder
 from workorders.models import WorkOrder
 
+from permissions.utils import permission_required
 
+
+def page_not_found(request: HttpRequest, exception: Exception | None = None) -> HttpResponse:
+    """Кастомна сторінка 404 Not Found.
+
+    Args:
+        request: HTTP-запит.
+        exception: Виняток Http404 (може містити повідомлення).
+
+    Returns:
+        Відрендерена сторінка 404 з дизайном проєкту.
+    """
+    from django.template.response import TemplateResponse
+    return TemplateResponse(
+        request,
+        '404.html',
+        {'exception': exception},
+        status=404,
+    )
+
+
+@permission_required('dashboard', 'read')
 def index(request: HttpRequest):
     """Головна сторінка — дашборд зі швидкими діями та останніми нарядами.
 
-    Для анонімних користувачів показує спрощену сторінку.
-    Для автентифікованих — останні замовлення й наряди поточної компанії.
-
     Args:
-        request: HTTP-запит для визначення користувача та компанії.
+        request: HTTP-запит для визначення користувача.
 
     Returns:
         Відрендерена сторінка дашборду з контекстом.
     """
-    user = request.user
-    is_authenticated = user.is_authenticated
-
     context: dict = {}
 
-    if is_authenticated:
-        is_staff = user.is_staff or user.is_superuser
+    context['recent_orders'] = filter_queryset_by_company(
+        request,
+        PurchaseOrder.objects.select_related('supplier', 'company'),
+    ).order_by('-created_at')[:5]
 
-        # Визначаємо, які компанії бачить користувач
-        if is_staff:
-            companies = Company.objects.all()
-            company_ids = list(companies.values_list('pk', flat=True))
-        else:
-            try:
-                employee = user.employee
-                company_ids = [employee.company_id]
-                companies = Company.objects.filter(pk=employee.company_id)
-            except AttributeError:
-                company_ids = []
-                companies = Company.objects.none()
-
-        # Останні замовлення
-        context['recent_orders'] = PurchaseOrder.objects.filter(
-            company_id__in=company_ids,
-        ).select_related('supplier', 'company').order_by('-created_at')[:5]
-
-        # Останні наряди
-        context['recent_workorders'] = WorkOrder.objects.filter(
-            company_id__in=company_ids,
-        ).select_related('vehicle', 'created_by__user').order_by('-created_at')[:5]
-
-        context['companies'] = companies
+    context['recent_workorders'] = filter_queryset_by_company(
+        request,
+        WorkOrder.objects.select_related('vehicle', 'created_by__user'),
+    ).order_by('-created_at')[:5]
 
     return render(request, "index.html", context)

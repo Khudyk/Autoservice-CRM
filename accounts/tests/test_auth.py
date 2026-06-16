@@ -6,6 +6,10 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
+from accounts.models import Employee, Role
+from company.models import Company
+from permissions.models import EmployeePermission, Module
+
 
 class TestLoginView:
     """Тести сторінки входу."""
@@ -108,24 +112,42 @@ class TestLogoutView:
         assert response.status_code == 302
         assert response.url == reverse('login')
 
+    def _create_employee_with_dashboard_access(
+        self, username: str = 'testuser', password: str = 'testpass123',
+    ) -> User:
+        """Створює користувача з Employee і доступом до dashboard."""
+        user = User.objects.create_user(username=username, password=password)
+        company = Company.objects.create(name='Test Company')
+        role, _ = Role.objects.get_or_create(codename='admin', defaults={'name': 'Адміністратор'})
+        employee = Employee.objects.create(user=user, company=company)
+        employee.roles.add(role)
+        module, _ = Module.objects.get_or_create(
+            codename='dashboard',
+            defaults={'name': 'Dashboard'},
+        )
+        EmployeePermission.objects.create(
+            employee=employee,
+            module=module,
+            can_read=True,
+        )
+        return user
+
     def test_logout_clears_session(
         self, client: Client, db: None,
     ) -> None:
         """Перевіряє, що після виходу користувач дійсно анонімний."""
-        User.objects.create_user(
-            username='testuser',
-            password='testpass123',
-        )
+        self._create_employee_with_dashboard_access()
         client.login(username='testuser', password='testpass123')
 
-        # Перевіряємо, що залогінений
+        # Перевіряємо, що залогінений (доступ до index — 200)
         index_url: str = reverse('index')
         response = client.get(index_url)
-        assert response.context['user'].is_authenticated is True
+        assert response.status_code == 200
 
         # Виходимо
         client.post(reverse('logout'))
 
-        # Перевіряємо, що анонімний
+        # Перевіряємо, що анонімний (редирект на login)
         response = client.get(index_url)
-        assert response.context['user'].is_authenticated is False
+        assert response.status_code == 302
+        assert response.url == reverse('login')

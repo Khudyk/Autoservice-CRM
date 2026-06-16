@@ -11,6 +11,7 @@ from django.urls import reverse
 
 from accounts.models import Employee, Role
 from company.models import Company
+from permissions.models import EmployeePermission, Module
 
 
 class TestEmployeeFormTemplate:
@@ -32,6 +33,25 @@ class TestEmployeeFormTemplate:
         company: Company = Company.objects.create(name='Тестова компанія')
         emp = Employee.objects.create(user=user, company=company)
         emp.roles.set([Role.objects.get(codename='admin')])
+
+        # Створюємо права на всі модулі, потрібні для тестів
+        for module_codename, module_name in [
+            ('employees', 'Співробітники'),
+            ('dashboard', 'Головна'),
+        ]:
+            module, _ = Module.objects.get_or_create(
+                codename=module_codename,
+                defaults={'name': module_name},
+            )
+            EmployeePermission.objects.create(
+                employee=emp,
+                module=module,
+                can_read=True,
+                can_create=True,
+                can_edit=True,
+                can_delete=True,
+            )
+
         client.login(username='admin_user', password='testpass123')
         return client
 

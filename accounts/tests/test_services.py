@@ -78,16 +78,12 @@ class TestEmployeeService:
             company=company,
             role='director',
             phone='+380509998877',
-            parts_sale_percent=5.00,
-            labor_percent=15.00,
         )
         assert employee.user == user
         assert employee.company == company
         assert employee.has_role('director')
         assert employee.phone == '+380509998877'
         assert employee.is_active is True
-        assert employee.parts_sale_percent == 5.00
-        assert employee.labor_percent == 15.00
 
     def test_create_employee_default_role(
         self,
@@ -102,20 +98,6 @@ class TestEmployeeService:
         )
         assert employee.has_role('mechanic')
 
-    def test_create_employee_default_percentages(
-        self,
-        user: User,
-        company: Company,
-        roles: None,
-    ) -> None:
-        """Перевіряє, що відсотки за замовчуванням дорівнюють 0.00."""
-        employee: Employee = EmployeeService.create_employee(
-            user=user,
-            company=company,
-        )
-        assert employee.parts_sale_percent == 0.00
-        assert employee.labor_percent == 0.00
-
     def test_update_employee_updates_fields(
         self,
         employee: Employee,
@@ -127,14 +109,10 @@ class TestEmployeeService:
             role='manager',
             phone='+380509990000',
             is_active=False,
-            parts_sale_percent=7.50,
-            labor_percent=20.00,
         )
         assert updated.has_role('manager')
         assert updated.phone == '+380509990000'
         assert updated.is_active is False
-        assert updated.parts_sale_percent == 7.50
-        assert updated.labor_percent == 20.00
 
     def test_update_employee_partial(
         self,
@@ -150,26 +128,6 @@ class TestEmployeeService:
         assert updated.has_role('admin')
         assert updated.phone == original_phone
         assert updated.is_active is True
-        # Відсотки не передані — мають залишитись 0.00
-        assert updated.parts_sale_percent == 0.00
-        assert updated.labor_percent == 0.00
-
-    def test_update_employee_partial_percentages(
-        self,
-        employee: Employee,
-        roles: None,
-    ) -> None:
-        """Перевіряє часткове оновлення тільки відсотків."""
-        updated: Employee = EmployeeService.update_employee(
-            employee=employee,
-            parts_sale_percent=12.00,
-            labor_percent=30.00,
-        )
-        assert updated.parts_sale_percent == 12.00
-        assert updated.labor_percent == 30.00
-        # Інші поля не змінилися
-        assert updated.is_active is True
-        assert updated.phone == employee.phone
 
     def test_deactivate_employee_sets_inactive(
         self,

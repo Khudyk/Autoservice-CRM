@@ -11,14 +11,15 @@ from accounts.models import Employee, Role
 from company.models import Company
 
 
-@pytest.fixture
-def company(db: Any) -> Company:
-    """Створює тестову компанію."""
-    return Company.objects.create(
-        name='Тестова компанія',
-        email='test@company.com',
-        phone='+380501234567',
-    )
+@pytest.fixture(scope='module')
+def company(django_db_blocker: Any) -> Company:
+    """Створює тестову компанію (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(
+            name='Тестова компанія',
+            email='test@company.com',
+            phone='+380501234567',
+        )
 
 
 @pytest.fixture

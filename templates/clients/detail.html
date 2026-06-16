@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ client.get_full_name }} — авто{% endblock %}
+{% block title %}{{ client.get_full_name }} — клієнт{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
@@ -33,11 +33,16 @@
 </div>
 {% endif %}
 
+<!-- ============================================================ -->
+<!-- АВТОМОБІЛІ КЛІЄНТА                                             -->
+<!-- ============================================================ -->
 <h2 class="h4 mb-3">
     <i class="bi-car-front me-2"></i>Автомобілі
+    {% if vehicles_page.paginator.count %}
+    <span class="badge bg-secondary bg-opacity-25 text-dark fw-normal fs-6 ms-1">{{ vehicles_page.paginator.count }}</span>
+    {% endif %}
 </h2>
 
-{% if page_obj %}
 <div class="card card-accent-blue">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -54,7 +59,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for vehicle in page_obj %}
+                    {% for vehicle in vehicles_page %}
                     <tr>
                         <td>
                             <a href="{% url 'vehicle_workorders' vehicle.pk %}" class="text-decoration-none fw-semibold">
@@ -82,7 +87,7 @@
                                 У клієнта <strong>{{ client.get_full_name }}</strong> ще немає жодного
                                 зареєстрованого автомобіля.
                             </p>
-                            <a href="{% url 'vehicle_create' %}" class="btn btn-primary btn-sm">
+                            <a href="{% url 'vehicle_list' %}" class="btn btn-primary btn-sm">
                                 <i class="bi-plus-lg me-1"></i>Додати авто
                             </a>
                         </td>
@@ -93,21 +98,129 @@
         </div>
     </div>
 </div>
-{% else %}
-<div class="card">
-    <div class="card-body text-center py-5">
-        <div class="empty-icon mb-3">
-            <i class="bi-car-front" style="font-size: 3rem;"></i>
+
+{% if vehicles_page.paginator.num_pages > 1 %}
+<nav class="mt-3" aria-label="Пагінація автомобілів">
+    <ul class="pagination pagination-sm justify-content-center">
+        {% if vehicles_page.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ vehicles_page.previous_page_number }}{% if request.GET.wo_page %}&wo_page={{ request.GET.wo_page }}{% endif %}">&laquo;</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">{{ vehicles_page.number }} / {{ vehicles_page.paginator.num_pages }}</span>
+        </li>
+        {% if vehicles_page.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ vehicles_page.next_page_number }}{% if request.GET.wo_page %}&wo_page={{ request.GET.wo_page }}{% endif %}">&raquo;</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- НАРЯДИ КЛІЄНТА                                                -->
+<!-- ============================================================ -->
+<h2 class="h4 mb-3 mt-4">
+    <i class="bi-file-earmark-text me-2"></i>Наряди
+    {% if workorders_page.paginator.count %}
+    <span class="badge bg-secondary bg-opacity-25 text-dark fw-normal fs-6 ms-1">{{ workorders_page.paginator.count }}</span>
+    {% endif %}
+</h2>
+
+<div class="card card-accent-blue">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Автомобіль</th>
+                        <th>Роботи</th>
+                        <th>Запчастини</th>
+                        <th>Разом</th>
+                        <th>Створив</th>
+                        <th>Статус</th>
+                        <th class="text-end">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wo in workorders_page %}
+                    <tr>
+                        <td class="fw-semibold">
+                            <a href="{% url 'workorder_detail' wo.pk %}" class="text-decoration-none fw-semibold">
+                                #{{ wo.pk }}
+                            </a>
+                        </td>
+                        <td class="text-muted small">{{ wo.created_at|date:"d.m.Y" }}</td>
+                        <td>
+                            {{ wo.vehicle.brand }} {{ wo.vehicle.model }}
+                            <br><small class="text-muted"><code>{{ wo.vehicle.vin_code }}</code></small>
+                        </td>
+                        <td>{{ wo.total_labor_cost|floatformat:2 }} грн</td>
+                        <td>{{ wo.total_parts_cost|floatformat:2 }} грн</td>
+                        <td class="fw-semibold">{{ wo.total_amount|floatformat:2 }} грн</td>
+                        <td>{{ wo.created_by.user.get_full_name|default:wo.created_by.user.username }}</td>
+                        <td>
+                            {% if wo.status == 'draft' %}
+                                <span class="badge bg-secondary">Чернетка</span>
+                            {% elif wo.status == 'in_progress' %}
+                                <span class="badge bg-primary">В роботі</span>
+                            {% elif wo.status == 'completed' %}
+                                <span class="badge bg-success">Завершено</span>
+                            {% elif wo.status == 'awaiting_payment' %}
+                                <span class="badge bg-warning text-dark">Очікує оплати</span>
+                            {% elif wo.status == 'cancelled' %}
+                                <span class="badge bg-danger">Скасовано</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end action-btns">
+                            <a href="{% url 'workorder_detail' wo.pk %}" class="btn btn-sm btn-outline-secondary"
+                               title="Деталі наряду">
+                                <i class="bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-icon"><i class="bi-file-earmark-text"></i></div>
+                            <h5>Немає нарядів</h5>
+                            <p class="text-muted">
+                                У клієнта <strong>{{ client.get_full_name }}</strong> ще немає
+                                жодного заказ-наряду.
+                            </p>
+                            <a href="{% url 'workorder_create' %}" class="btn btn-primary btn-sm">
+                                <i class="bi-plus-lg me-1"></i>Створити наряд
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <h4>Немає автомобілів</h4>
-        <p class="text-muted mb-3">
-            У клієнта <strong>{{ client.get_full_name }}</strong> ще немає жодного
-            зареєстрованого автомобіля.
-        </p>
-        <a href="{% url 'vehicle_create' %}" class="btn btn-primary">
-            <i class="bi-plus-lg me-1"></i>Додати автомобіль
-        </a>
     </div>
 </div>
+
+{% if workorders_page.paginator.num_pages > 1 %}
+<nav class="mt-3" aria-label="Пагінація нарядів">
+    <ul class="pagination pagination-sm justify-content-center">
+        {% if workorders_page.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?wo_page={{ workorders_page.previous_page_number }}{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}">&laquo;</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link">{{ workorders_page.number }} / {{ workorders_page.paginator.num_pages }}</span>
+        </li>
+        {% if workorders_page.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?wo_page={{ workorders_page.next_page_number }}{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}">&raquo;</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
 {% endif %}
 {% endblock %}

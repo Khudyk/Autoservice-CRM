@@ -20,37 +20,22 @@ from suppliers.models import Supplier
 # =============================================================================
 
 
-@pytest.fixture
-def roles_setup(db: None) -> None:
-    """Гарантує наявність ролей (якщо ще не створені)."""
-    from accounts.models import Role
-    if Role.objects.count() == 0:
-        for codename, name in [
-            ("director", "Директор"),
-            ("manager", "Менеджер"),
-            ("mechanic", "Майстер"),
-            ("accountant", "Бухгалтер"),
-            ("admin", "Адміністратор"),
-            ("purchaser", "Закупівельник"),
-            ("storekeeper", "Складовщик"),
-        ]:
-            Role.objects.create(codename=codename, name=name)
+@pytest.fixture(scope='module')
+def company(django_db_blocker: Any) -> Company:
+    """Створює тестову компанію (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(
+            name="Тестова компанія",
+            email="test@company.com",
+            phone="+380501234567",
+        )
 
 
-@pytest.fixture
-def company(db: Any) -> Company:
-    """Створює тестову компанію."""
-    return Company.objects.create(
-        name="Тестова компанія",
-        email="test@company.com",
-        phone="+380501234567",
-    )
-
-
-@pytest.fixture
-def other_company(db: Any) -> Company:
-    """Створює іншу компанію для тестів ізоляції."""
-    return Company.objects.create(name="Інша компанія")
+@pytest.fixture(scope='module')
+def other_company(django_db_blocker: Any) -> Company:
+    """Створює іншу компанію для тестів ізоляції (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(name="Інша компанія")
 
 
 @pytest.fixture
@@ -65,7 +50,7 @@ def supplier(company: Company) -> Supplier:
 
 
 @pytest.fixture
-def employee(roles_setup, company: Company) -> Employee:
+def employee(roles, company: Company) -> Employee:
     """Створює тестового співробітника."""
     from django.contrib.auth.models import User
     from accounts.models import Role

@@ -7,21 +7,24 @@ from typing import Any
 
 import pytest
 from django.contrib.auth.models import User
+from django.test import Client
 
 from accounts.models import Employee, Role
 from company.models import Company
 from parts.models import Part
+from permissions.models import EmployeePermission, Module
 from suppliers.models import Supplier
 
 
-@pytest.fixture
-def company(db: Any) -> Company:
-    """Створює тестову компанію."""
-    return Company.objects.create(
-        name='Тестова компанія',
-        email='test@company.com',
-        phone='+380501234567',
-    )
+@pytest.fixture(scope='module')
+def company(django_db_blocker: Any) -> Company:
+    """Створює тестову компанію (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(
+            name='Тестова компанія',
+            email='test@company.com',
+            phone='+380501234567',
+        )
 
 
 @pytest.fixture
@@ -73,10 +76,11 @@ def admin_employee(db: Any, roles: None, admin_user: User, company: Company) -> 
     return emp
 
 
-@pytest.fixture
-def other_company(db: Any) -> Company:
-    """Інша компанія для тестів ізоляції."""
-    return Company.objects.create(name='Інша компанія')
+@pytest.fixture(scope='module')
+def other_company(django_db_blocker: Any) -> Company:
+    """Інша компанія для тестів ізоляції (module-scoped)."""
+    with django_db_blocker.unblock():
+        return Company.objects.create(name='Інша компанія')
 
 
 @pytest.fixture
@@ -103,3 +107,21 @@ def part(db: Any, company: Company) -> Part:
         location='Стелаж A-1',
         company=company,
     )
+
+
+@pytest.fixture
+def regular_client(client: Client, employee: Employee) -> Client:
+    """Клієнт, залогінений як механік з правом читання запчастин."""
+    employee.user.is_staff = False
+    employee.user.save()
+    module, _ = Module.objects.get_or_create(
+        codename='parts',
+        defaults={'name': 'Запчастини'},
+    )
+    EmployeePermission.objects.update_or_create(
+        employee=employee,
+        module=module,
+        defaults={'can_read': True},
+    )
+    client.login(username=employee.user.username, password='testpass123')
+    return client
